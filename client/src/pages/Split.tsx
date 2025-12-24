@@ -29,6 +29,8 @@ type GroupPayload = {
   };
 };
 
+import { PageContainer } from "@/components/PageContainer";
+
 export default function Split() {
   const { toast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
@@ -586,6 +588,7 @@ export default function Split() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </PageContainer>
   );
 }

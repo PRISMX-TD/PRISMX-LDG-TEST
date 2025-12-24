@@ -153,7 +153,7 @@ export default function SubLedgers() {
 
   return (
     <PageContainer>
-      <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-5 md:space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-4">
         <Link href="/">
           <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
