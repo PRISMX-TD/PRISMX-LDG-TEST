@@ -49,7 +49,7 @@ export default function Settings() {
   return (
     <PageContainer>
       <div className="space-y-6 max-w-3xl mx-auto">
-        <div className="hidden md:flex items-center gap-4">
+        <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
               <ArrowLeft className="w-4 h-4 mr-1" />

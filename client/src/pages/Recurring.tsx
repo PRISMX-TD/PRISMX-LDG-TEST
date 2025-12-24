@@ -153,7 +153,7 @@ export default function Recurring() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="hidden md:flex items-center gap-4">
+      <div className="flex items-center gap-4">
         <Link href="/">
           <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
             <ArrowLeft className="w-4 h-4 mr-1" />

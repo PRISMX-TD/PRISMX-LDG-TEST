@@ -650,7 +650,7 @@ export default function Analytics() {
       <div className="space-y-5 md:space-y-6 max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="flex flex-col gap-4">
-          <div className="hidden md:flex items-center gap-4">
+          <div className="flex items-center gap-4">
             <Link href="/">
               <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                 <ArrowLeft className="w-4 h-4 mr-1" />

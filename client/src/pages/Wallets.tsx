@@ -288,7 +288,7 @@ export default function Wallets() {
   return (
     <PageContainer scrollable={false}>
       <div className="flex-1 flex flex-col min-h-0 space-y-4 md:space-y-6">
-        <div className="hidden md:flex items-center gap-4">
+        <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="sm" data-testid="button-back-home" className="text-gray-400 hover:text-white">
               <ArrowLeft className="w-4 h-4 mr-1" />
@@ -319,25 +319,7 @@ export default function Wallets() {
             isLoading={isLoading}
           />
 
-          <div className="flex md:hidden items-center justify-between">
-            <h2 className="text-base font-semibold flex items-center gap-2 text-white">
-              <Wallet className="w-4 h-4 text-neon-purple" />
-              我的钱包
-            </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSelectedWallet(null);
-                setIsModalOpen(true);
-              }}
-              className="text-sm text-neon-purple hover:text-white hover:bg-white/10"
-              data-testid="button-add-wallet-inline"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              添加
-            </Button>
-          </div>
+
 
           {isLoading ? (
             <div className="space-y-4">

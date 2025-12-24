@@ -249,7 +249,7 @@ export default function Exchange() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-      <div className="hidden md:flex items-center gap-4">
+      <div className="flex items-center gap-4">
         <Link href="/">
           <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
             <ArrowLeft className="w-4 h-4 mr-1" />
