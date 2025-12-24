@@ -589,4 +589,4 @@ export default function Split() {
       </div>
     </PageContainer>
   );
-}
+} // End of Split component
