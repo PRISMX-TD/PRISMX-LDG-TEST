@@ -27,7 +27,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -123,22 +123,27 @@ export default function Wallets() {
     return orderedGroups;
   }, [wallets, walletPreferences]);
 
-  const handleLongPressStart = useCallback((e: React.TouchEvent | React.MouseEvent, wallet: WalletType) => {
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+  const handleDragMove = useCallback((e: TouchEvent | MouseEvent) => {
+    if (!isDragging.current) return;
     
-    longPressTimer.current = setTimeout(() => {
-      isDragging.current = true;
-      setDragState({
-        walletId: wallet.id,
-        type: wallet.type,
-        startY: clientY,
-        currentY: clientY,
-      });
-      
-      if ('vibrate' in navigator) {
-        navigator.vibrate(50);
-      }
-    }, 400);
+    // e.preventDefault(); // Prevent scrolling while dragging - optional, but good for UX
+    const clientY = 'touches' in e ? (e as TouchEvent).touches[0].clientY : (e as MouseEvent).clientY;
+    
+    setDragState(prev => prev ? { ...prev, currentY: clientY } : null);
+    
+    // Handle touch move element detection for drag over
+    if ('touches' in e) {
+        const touch = (e as TouchEvent).touches[0];
+        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        const walletElement = element?.closest('[data-wallet-id]');
+        if (walletElement) {
+          const id = parseInt(walletElement.getAttribute('data-wallet-id') || '0');
+          // We need access to the current dragOverWalletId here, but since this is a callback
+          // passed to addEventListener, we might have stale closure issues if not careful.
+          // However, we are setting state based on the detected ID.
+          setDragOverWalletId(current => current !== id ? id : current);
+        }
+    }
   }, []);
 
   const handleLongPressEnd = useCallback(() => {
@@ -146,6 +151,46 @@ export default function Wallets() {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
+    
+    if (isDragging.current) {
+      // Clean up listeners
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleLongPressEnd);
+      window.removeEventListener('touchmove', handleDragMove);
+      window.removeEventListener('touchend', handleLongPressEnd);
+      window.removeEventListener('touchcancel', handleLongPressEnd);
+
+      // Perform reorder logic
+      // Note: We need to access the LATEST state here. Since this function is memoized with deps,
+      // it should have access to the latest state when re-created.
+      // BUT, since we attach it as an event listener, we might be calling an old version?
+      // Actually, we attach it in handleLongPressStart, which closes over the current scope.
+      // But dragOverWalletId is state. 
+      // To be safe, we should probably use a ref for dragOverWalletId if we were attaching once,
+      // but here we are attaching/detaching dynamically.
+      // The issue is that handleLongPressEnd is defined with deps [dragState, dragOverWalletId...].
+      // When these change, handleLongPressEnd is redefined.
+      // BUT the event listener attached to window is the OLD handleLongPressEnd.
+      // This is a classic React Event Listener trap.
+      // FIX: Use refs for the values needed inside the event handler, OR use a stable handler that reads from refs.
+    }
+    
+    // We will handle the state update logic in a useEffect that watches for isDragging change to false?
+    // Or just rely on the fact that we need to execute the logic NOW.
+    
+    // Let's implement the logic using refs to ensure we have fresh data
+    // We can't easily change to refs for everything now without refactoring.
+    // ALTERNATIVE: Use a stable "end" handler that calls a ref-held function.
+  }, [handleDragMove]); // We will fix the logic below
+
+  // Ref to hold current state for event handlers
+  const stateRef = useRef({ dragState, dragOverWalletId, groupedWallets, walletPreferences });
+  useEffect(() => {
+    stateRef.current = { dragState, dragOverWalletId, groupedWallets, walletPreferences };
+  }, [dragState, dragOverWalletId, groupedWallets, walletPreferences]);
+
+  const onDragEnd = useCallback(() => {
+    const { dragState, dragOverWalletId, groupedWallets, walletPreferences } = stateRef.current;
     
     if (dragState && dragOverWalletId && dragState.walletId !== dragOverWalletId) {
       const currentOrder = walletPreferences?.walletOrder as Record<string, number[]> || {};
@@ -165,18 +210,53 @@ export default function Wallets() {
         });
       }
     }
-    
+
     isDragging.current = false;
     setDragState(null);
     setDragOverWalletId(null);
-  }, [dragState, dragOverWalletId, walletPreferences, groupedWallets, updatePreferencesMutation]);
 
-  const handleDragMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    if (!dragState) return;
-    
+    window.removeEventListener('mousemove', handleDragMove);
+    window.removeEventListener('mouseup', onDragEnd);
+    window.removeEventListener('touchmove', handleDragMove);
+    window.removeEventListener('touchend', onDragEnd);
+    window.removeEventListener('touchcancel', onDragEnd);
+  }, [handleDragMove, updatePreferencesMutation]); // updatePreferencesMutation is stable
+
+  const handleLongPressStart = useCallback((e: React.TouchEvent | React.MouseEvent, wallet: WalletType) => {
+    // Only allow left click or touch
+    if ('button' in e && e.button !== 0) return;
+
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    setDragState(prev => prev ? { ...prev, currentY: clientY } : null);
-  }, [dragState]);
+    
+    longPressTimer.current = setTimeout(() => {
+      isDragging.current = true;
+      setDragState({
+        walletId: wallet.id,
+        type: wallet.type,
+        startY: clientY,
+        currentY: clientY,
+      });
+      
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50);
+      }
+
+      // Attach global listeners
+      window.addEventListener('mousemove', handleDragMove, { passive: false });
+      window.addEventListener('mouseup', onDragEnd);
+      window.addEventListener('touchmove', handleDragMove, { passive: false });
+      window.addEventListener('touchend', onDragEnd);
+      window.addEventListener('touchcancel', onDragEnd);
+
+    }, 400);
+  }, [handleDragMove, onDragEnd]);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   const handleDragEnter = useCallback((walletId: number) => {
     if (dragState && walletId !== dragState.walletId) {
@@ -212,15 +292,7 @@ export default function Wallets() {
         <Header user={user} />
       </div>
 
-      <div 
-        className="flex-1 flex flex-col min-h-0 space-y-4 md:space-y-6"
-        onMouseMove={handleDragMove}
-        onMouseUp={handleLongPressEnd}
-        onMouseLeave={handleLongPressEnd}
-        onTouchMove={handleDragMove}
-        onTouchEnd={handleLongPressEnd}
-        onTouchCancel={handleLongPressEnd}
-      >
+      <div className="flex-1 flex flex-col min-h-0 space-y-4 md:space-y-6">
         <div className="hidden md:flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="sm" data-testid="button-back-home" className="text-gray-400 hover:text-white">
@@ -245,7 +317,7 @@ export default function Wallets() {
           </Button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scroll pr-2 space-y-6 touch-pan-y">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scroll pr-2 space-y-6">
           <TotalAssetsCard
             wallets={wallets.filter((w)=>!(w.isFlexible === false && (w.name || '').endsWith(' (归档)')))}
             defaultCurrency={defaultCurrency}
@@ -351,21 +423,13 @@ export default function Wallets() {
                                 dragOverWalletId === wallet.id && dragState?.type === type ? 'ring-2 ring-neon-purple rounded-xl' : ''
                               }`}
                               onMouseDown={(e) => handleLongPressStart(e, wallet)}
+                              onMouseUp={cancelLongPress}
+                              onMouseLeave={cancelLongPress}
                               onMouseEnter={() => handleDragEnter(wallet.id)}
                               onTouchStart={(e) => handleLongPressStart(e, wallet)}
-                              onTouchMove={(e) => {
-                                if (dragState) {
-                                  const touch = e.touches[0];
-                                  const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                                  const walletElement = element?.closest('[data-wallet-id]');
-                                  if (walletElement) {
-                                    const id = parseInt(walletElement.getAttribute('data-wallet-id') || '0');
-                                    if (id !== dragOverWalletId) {
-                                      handleDragEnter(id);
-                                    }
-                                  }
-                                }
-                              }}
+                              onTouchEnd={cancelLongPress}
+                              onTouchCancel={cancelLongPress}
+                              // Removed onTouchMove from here to prevent scroll locking
                               data-wallet-id={wallet.id}
                             >
                               <div className="h-full">
