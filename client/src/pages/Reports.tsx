@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
+import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Download, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { FileText, Download, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown, Wallet, ArrowLeft } from "lucide-react";
 import { getCurrencyInfo } from "@shared/schema";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import type { Transaction, Wallet as WalletType, Category } from "@shared/schema";

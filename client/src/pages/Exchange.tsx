@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,12 +31,13 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   ArrowUpDown, 
+  ArrowLeft,
   Key, 
   Plus, 
   RefreshCw, 
   Trash2, 
   Shield,
-  TrendingUp,
+  TrendingUp, 
   Coins,
   AlertCircle,
   CheckCircle2,
