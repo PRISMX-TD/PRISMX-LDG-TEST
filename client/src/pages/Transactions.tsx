@@ -305,9 +305,9 @@ export default function Transactions() {
                       <TransactionItem
                         key={transaction.id}
                         transaction={transaction}
-                        category={transaction.category}
-                        wallet={transaction.wallet}
-                        toWallet={transaction.toWallet}
+                        category={categories.find(c => c.id === transaction.categoryId)}
+                        wallet={wallets.find(w => w.id === transaction.walletId)}
+                        toWallet={transaction.toWalletId ? wallets.find(w => w.id === transaction.toWalletId) : undefined}
                         onClick={(tx) => {
                           setEditingTransaction(tx);
                           setIsModalOpen(true);
