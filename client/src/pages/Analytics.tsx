@@ -36,6 +36,7 @@ import {
   ArrowDown,
   CreditCard,
   BookOpen,
+  ArrowLeft,
 } from "lucide-react";
 import {
   DndContext,
@@ -649,17 +650,18 @@ export default function Analytics() {
       <div className="space-y-5 md:space-y-6 max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex w-10 h-10 rounded-xl bg-primary/10 items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="hidden md:block text-xl font-semibold">数据分析</h1>
-                <p className="hidden md:block text-sm text-muted-foreground">财务数据概览与趋势分析</p>
-              </div>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} data-testid="button-analytics-settings">
+          <div className="hidden md:flex items-center gap-4">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                返回
+              </Button>
+            </Link>
+            <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+              <BarChart3 className="w-6 h-6 text-neon-purple" />
+              数据分析
+            </h1>
+            <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} data-testid="button-analytics-settings" className="ml-auto">
               <Settings2 className="w-5 h-5" />
             </Button>
           </div>

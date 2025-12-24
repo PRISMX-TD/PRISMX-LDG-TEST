@@ -49,14 +49,17 @@ export default function Settings() {
   return (
     <PageContainer>
       <div className="space-y-6 max-w-3xl mx-auto">
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex w-10 h-10 rounded-xl bg-primary/10 items-center justify-center">
-            <SettingsIcon className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold">设置</h1>
-            <p className="text-sm text-muted-foreground hidden md:block">管理您的账户偏好和安全设置</p>
-          </div>
+        <div className="hidden md:flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              返回
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+            <SettingsIcon className="w-6 h-6 text-neon-purple" />
+            设置
+          </h1>
         </div>
 
         <div className="glass-card p-6 relative overflow-hidden">

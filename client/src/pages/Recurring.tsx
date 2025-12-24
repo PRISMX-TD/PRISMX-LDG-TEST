@@ -22,10 +22,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarClock, Plus, Loader2, Trash2, Pause, Play, TrendingDown, TrendingUp } from "lucide-react";
+import { CalendarClock, Plus, Loader2, Trash2, Pause, Play, TrendingDown, TrendingUp, ArrowLeft } from "lucide-react";
 import { getCurrencyInfo } from "@shared/schema";
 import { format } from "date-fns";
 import type { RecurringTransaction, Wallet, Category } from "@shared/schema";
+import { Link } from "wouter";
 
 const FREQUENCY_OPTIONS = [
   { value: "daily", label: "每天" },
@@ -152,12 +153,18 @@ export default function Recurring() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <CalendarClock className="w-6 h-6" />
+      <div className="hidden md:flex items-center gap-4">
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            返回
+          </Button>
+        </Link>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+          <CalendarClock className="w-6 h-6 text-neon-purple" />
           定期交易
         </h1>
-        <Button onClick={() => setIsModalOpen(true)} data-testid="button-add-recurring">
+        <Button onClick={() => setIsModalOpen(true)} data-testid="button-add-recurring" className="ml-auto">
           <Plus className="w-4 h-4 mr-1" />
           新建定期交易
         </Button>

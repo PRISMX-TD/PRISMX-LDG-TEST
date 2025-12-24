@@ -21,10 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TrendingUp, Plus, Loader2, AlertCircle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, Plus, Loader2, AlertCircle, Trash2, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 import { getCurrencyInfo } from "@shared/schema";
 import type { Category } from "@shared/schema";
 import { PageContainer } from "@/components/PageContainer";
+import { Link } from "wouter";
 
 interface BudgetWithSpending {
   id: number;
@@ -134,21 +135,22 @@ export default function Budgets() {
   return (
     <PageContainer>
       <div className="space-y-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex w-10 h-10 rounded-xl bg-primary/10 items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold">预算管理</h1>
-              <p className="text-sm text-muted-foreground hidden md:block">设定并监控您的月度支出预算</p>
-            </div>
-          </div>
+        <div className="hidden md:flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              返回
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+            <TrendingUp className="w-6 h-6 text-neon-purple" />
+            预算管理
+          </h1>
           <Button
             onClick={() => setIsModalOpen(true)}
             disabled={availableCategories.length === 0}
             data-testid="button-add-budget"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <Plus className="w-4 h-4 mr-1" />
             添加预算

@@ -249,14 +249,20 @@ export default function Exchange() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ArrowUpDown className="w-6 h-6" />
+      <div className="hidden md:flex items-center gap-4">
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            返回
+          </Button>
+        </Link>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+          <ArrowUpDown className="w-6 h-6 text-neon-purple" />
           交易所账户
         </h1>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-add-exchange">
+            <Button data-testid="button-add-exchange" className="ml-auto">
               <Plus className="w-4 h-4 mr-1" />
               连接交易所
             </Button>

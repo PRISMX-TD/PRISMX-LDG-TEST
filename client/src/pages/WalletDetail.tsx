@@ -174,13 +174,16 @@ export default function WalletDetail() {
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Link href="/wallets">
-            <Button variant="ghost" size="icon" data-testid="button-back">
-              <ArrowLeft className="w-5 h-5" />
+            <Button variant="ghost" size="sm" data-testid="button-back" className="text-gray-400 hover:text-white">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              返回
             </Button>
           </Link>
-          <h1 className="text-xl font-bold">{wallet?.name || "钱包详情"}</h1>
+          <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+            {wallet?.name || "钱包详情"}
+          </h1>
         </div>
         <Button
           variant="ghost"

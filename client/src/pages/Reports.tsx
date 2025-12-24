@@ -151,12 +151,18 @@ export default function Reports() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileText className="w-6 h-6" />
+      <div className="hidden md:flex items-center gap-4">
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            返回
+          </Button>
+        </Link>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+          <FileText className="w-6 h-6 text-neon-purple" />
           财务报表
         </h1>
-        <Button onClick={handleExport} variant="outline" data-testid="button-export-csv">
+        <Button onClick={handleExport} variant="outline" data-testid="button-export-csv" className="ml-auto">
           <Download className="w-4 h-4 mr-1" />
           导出CSV
         </Button>

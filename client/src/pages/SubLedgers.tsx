@@ -156,9 +156,15 @@ export default function SubLedgers() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="hidden md:flex text-2xl font-bold items-center gap-2">
-          <BookOpen className="w-6 h-6" />
+      <div className="hidden md:flex items-center gap-4">
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            返回
+          </Button>
+        </Link>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+          <BookOpen className="w-6 h-6 text-neon-purple" />
           子账本
         </h1>
         <div className="flex items-center gap-3 ml-auto">

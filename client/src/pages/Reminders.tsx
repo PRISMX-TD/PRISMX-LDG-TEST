@@ -22,10 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bell, Plus, Loader2, Trash2, Calendar, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Bell, Plus, Loader2, Trash2, Calendar, CheckCircle2, AlertTriangle, ArrowLeft } from "lucide-react";
 import { getCurrencyInfo } from "@shared/schema";
 import { format, differenceInDays, isPast, isToday } from "date-fns";
 import type { BillReminder, Wallet, Category } from "@shared/schema";
+import { Link } from "wouter";
 
 export default function Reminders() {
   const { user } = useAuth();
@@ -155,12 +156,18 @@ export default function Reminders() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Bell className="w-6 h-6" />
+      <div className="hidden md:flex items-center gap-4">
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            返回
+          </Button>
+        </Link>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+          <Bell className="w-6 h-6 text-neon-purple" />
           账单提醒
         </h1>
-        <Button onClick={() => setIsModalOpen(true)} data-testid="button-add-reminder">
+        <Button onClick={() => setIsModalOpen(true)} data-testid="button-add-reminder" className="ml-auto">
           <Plus className="w-4 h-4 mr-1" />
           添加账单
         </Button>

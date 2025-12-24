@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calculator, Trash2, Pencil, Users, Loader2, Info } from "lucide-react";
+import { Plus, Calculator, Trash2, Pencil, Users, Loader2, Info, ArrowLeft } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { supportedCurrencies } from "@shared/schema";
@@ -238,12 +238,18 @@ export default function Split() {
 
   return (
     <div className="mx-auto max-w-7xl p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="hidden md:flex text-2xl font-bold items-center gap-2">
-          <Users className="w-6 h-6" />
+      <div className="hidden md:flex items-center gap-4">
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            返回
+          </Button>
+        </Link>
+        <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+          <Users className="w-6 h-6 text-neon-purple" />
           费用分摊
         </h1>
-        <Button onClick={() => setCreateOpen(true)} data-testid="button-add-group">
+        <Button onClick={() => setCreateOpen(true)} data-testid="button-add-group" className="ml-auto">
           <Plus className="w-4 h-4 mr-1" />
           新建活动
         </Button>
