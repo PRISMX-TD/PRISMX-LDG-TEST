@@ -112,7 +112,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     isActive={location === item.href}
                     tooltip={item.label}
                   >
-                    <Link href={item.href} data-testid={`nav-${item.href.slice(1) || "home"}`}>
+                    <Link href={item.href} className="w-full h-full flex items-center" data-testid={`nav-${item.href.slice(1) || "home"}`}>
                       <item.icon className="w-4 h-4" />
                       <span>{item.label}</span>
                     </Link>
@@ -136,7 +136,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     isActive={location === item.href}
                     tooltip={item.label}
                   >
-                    <Link href={item.href} data-testid={`nav-${item.href.slice(1)}`}>
+                    <Link href={item.href} className="w-full h-full flex items-center" data-testid={`nav-${item.href.slice(1)}`}>
                       <item.icon className="w-4 h-4" />
                       <span>{item.label}</span>
                       {item.badge !== undefined && item.badge > 0 ? (
@@ -165,7 +165,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     isActive={location === item.href}
                     tooltip={item.label}
                   >
-                    <Link href={item.href} data-testid={`nav-${item.href.slice(1)}`}>
+                    <Link href={item.href} className="w-full h-full flex items-center" data-testid={`nav-${item.href.slice(1)}`}>
                       <item.icon className="w-4 h-4" />
                       <span>{item.label}</span>
                     </Link>
@@ -199,7 +199,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="设置">
-              <Link href="/settings" data-testid="nav-settings">
+              <Link href="/settings" className="w-full h-full flex items-center" data-testid="nav-settings">
                 <Settings className="w-4 h-4" />
                 <span>设置</span>
               </Link>
@@ -207,7 +207,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="退出登录">
-              <a href="/api/logout" data-testid="nav-logout">
+              <a href="/api/logout" className="w-full h-full flex items-center" data-testid="nav-logout">
                 <LogOut className="w-4 h-4" />
                 <span>退出登录</span>
               </a>
