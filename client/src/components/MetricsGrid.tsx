@@ -112,17 +112,6 @@ export function MetricsGrid({
             <CreditCard className="w-4 h-4 text-neon-purple" />
             可灵活调用
           </div>
-          <button 
-            onClick={togglePrivacyMode}
-            className="text-gray-600 hover:text-white transition-colors focus:outline-none"
-            title={isPrivacyMode ? "显示金额" : "隐藏金额"}
-          >
-            {isPrivacyMode ? (
-              <EyeOff className="w-4 h-4" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
-          </button>
         </div>
         <div className="mt-auto">
           <div className="text-2xl sm:text-3xl font-bold text-white mb-3 tracking-tight group-hover:text-purple-200 transition-colors font-mono truncate">
