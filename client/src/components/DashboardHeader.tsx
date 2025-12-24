@@ -2,6 +2,8 @@ import { Search, Bell, Plus, PanelLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { useState } from "react";
+import { useLocation } from "wouter";
 
 interface DashboardHeaderProps {
   onAddTransaction: () => void;
@@ -9,6 +11,14 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onAddTransaction }: DashboardHeaderProps) {
   const today = new Date();
+  const [searchValue, setSearchValue] = useState("");
+  const [, setLocation] = useLocation();
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && searchValue.trim()) {
+      setLocation(`/transactions?search=${encodeURIComponent(searchValue.trim())}`);
+    }
+  };
   
   return (
     <header className="h-20 flex items-center justify-between px-8 py-4 z-20 shrink-0">
@@ -46,10 +56,13 @@ export function DashboardHeader({ onAddTransaction }: DashboardHeaderProps) {
             <input
               type="text"
               placeholder="搜索资产、交易..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              onKeyDown={handleSearch}
               className="bg-transparent border-none outline-none text-sm text-gray-300 ml-2 w-full placeholder-gray-600 focus:ring-0"
             />
             <span className="text-xs text-gray-600 border border-gray-700 rounded px-1.5 py-0.5">
-              ⌘K
+              Enter
             </span>
           </div>
         </div>

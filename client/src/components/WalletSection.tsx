@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 
 interface WalletSectionProps {
   userName?: string;
+  defaultWalletBalance?: number;
+  currency?: string;
 }
 
-export function WalletSection({ userName = "USER" }: WalletSectionProps) {
+export function WalletSection({ userName = "USER", defaultWalletBalance = 0, currency = "MYR" }: WalletSectionProps) {
   // Fetch exchange rate (USD to CNY for demo, or based on user prefs)
   const { data: exchangeRate } = useQuery({
-    queryKey: ["/api/exchange-rate?from=USD&to=MYR"],
+    queryKey: [`/api/exchange-rate?from=USD&to=${currency}`],
     staleTime: 3600000, // 1 hour
   });
 
@@ -26,7 +28,9 @@ export function WalletSection({ userName = "USER" }: WalletSectionProps) {
         </div>
         
         <div className="relative z-10">
-          <div className="text-2xl font-mono text-white tracking-widest mb-4 drop-shadow-md">**** **** **** 8888</div>
+          <div className="text-2xl font-mono text-white tracking-widest mb-4 drop-shadow-md">
+            {currency} {defaultWalletBalance.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
           <div className="flex justify-between items-end">
             <div>
               <div className="text-[10px] text-gray-400 uppercase">Card Holder</div>
@@ -49,7 +53,7 @@ export function WalletSection({ userName = "USER" }: WalletSectionProps) {
       {/* Exchange Rate Card */}
       <div className="flex-1 glass-card p-4 flex flex-col justify-center">
         <div className="flex justify-between items-center text-sm text-gray-400 mb-2">
-          <span>Exchange Rate (USD/MYR)</span>
+          <span>Exchange Rate (USD/{currency})</span>
           <span className="text-success text-xs">+0.02%</span>
         </div>
         <div className="flex items-center justify-between">
@@ -63,7 +67,7 @@ export function WalletSection({ userName = "USER" }: WalletSectionProps) {
           <div className="flex items-center gap-3">
             <span className="text-xl font-bold text-white">{rate}</span>
             <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center p-1.5">
-              <span className="text-xs font-bold text-white">MYR</span>
+              <span className="text-xs font-bold text-white">{currency}</span>
             </div>
           </div>
         </div>

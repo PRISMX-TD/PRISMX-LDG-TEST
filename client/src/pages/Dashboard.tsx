@@ -70,7 +70,7 @@ export default function Dashboard() {
 
   const { data: transactions = [], isLoading: isTransactionsLoading } =
     useQuery<TransactionWithRelations[]>({
-      queryKey: ["/api/transactions?limit=20"],
+      queryKey: ["/api/transactions?limit=100"], // Increased limit for chart
       enabled: isAuthenticated,
     });
 
@@ -91,11 +91,20 @@ export default function Dashboard() {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
     const monthlyTransactions = transactions.filter((t) => {
       const date = new Date(t.date);
       return (
         date.getMonth() === currentMonth && date.getFullYear() === currentYear
+      );
+    });
+    
+    const prevMonthlyTransactions = transactions.filter((t) => {
+      const date = new Date(t.date);
+      return (
+        date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear
       );
     });
 
@@ -106,11 +115,19 @@ export default function Dashboard() {
     const expense = monthlyTransactions
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + getConvertedAmount(t), 0);
+      
+    const prevIncome = prevMonthlyTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + getConvertedAmount(t), 0);
 
-    return { income, expense };
+    const prevExpense = prevMonthlyTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + getConvertedAmount(t), 0);
+
+    return { income, expense, prevIncome, prevExpense };
   };
 
-  const { income: monthlyIncome, expense: monthlyExpense } = getMonthlyStats();
+  const { income: monthlyIncome, expense: monthlyExpense, prevIncome: prevMonthlyIncome, prevExpense: prevMonthlyExpense } = getMonthlyStats();
 
   const totalAssets = useMemo(() => {
     return wallets.reduce((sum, w) => {
@@ -119,6 +136,16 @@ export default function Dashboard() {
       return sum + balance * rate;
     }, 0);
   }, [wallets]);
+  
+  // Simple approximation for previous month assets: 
+  // Current Assets - (Current Month Income - Current Month Expense)
+  // This assumes all asset changes come from income/expense, which is not 100% accurate (transfers, adjustments)
+  // but good enough for a trend indicator without full historical snapshots.
+  const prevTotalAssets = totalAssets - (monthlyIncome - monthlyExpense);
+
+  const defaultWallet = wallets.find(w => w.id === user?.defaultWalletId) || wallets[0];
+  const defaultWalletBalance = defaultWallet ? parseFloat(defaultWallet.balance) : 0;
+  const userCurrency = user?.defaultCurrency || "MYR";
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -178,13 +205,20 @@ export default function Dashboard() {
             totalAssets={totalAssets}
             monthlyExpense={monthlyExpense}
             monthlyIncome={monthlyIncome}
-            currencyCode={user.defaultCurrency || "MYR"}
+            prevMonthlyExpense={prevMonthlyExpense}
+            prevMonthlyIncome={prevMonthlyIncome}
+            prevTotalAssets={prevTotalAssets}
+            currencyCode={userCurrency}
           />
 
           {/* Charts & Cards Section */}
           <div className="flex flex-col lg:flex-row gap-6 mb-8">
             <CashFlowChart transactions={transactions} />
-            <WalletSection userName={user.username} />
+            <WalletSection 
+              userName={user.username} 
+              defaultWalletBalance={defaultWalletBalance}
+              currency={userCurrency}
+            />
           </div>
 
           {/* Recent Transactions Table */}

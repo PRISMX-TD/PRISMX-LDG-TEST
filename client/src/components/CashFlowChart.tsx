@@ -1,16 +1,20 @@
 import { useMemo, useEffect, useState, useRef } from "react";
-import { format, subDays, startOfDay, isSameDay } from "date-fns";
+import { format, subDays, isSameDay, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { ArrowUpRight, Calendar } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CashFlowChartProps {
   transactions?: any[];
 }
 
+type TimeRange = "week" | "month";
+
 export function CashFlowChart({ transactions = [] }: CashFlowChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [Recharts, setRecharts] = useState<any>(null);
+  const [timeRange, setTimeRange] = useState<TimeRange>("week");
 
   useEffect(() => {
     const el = containerRef.current;
@@ -29,13 +33,35 @@ export function CashFlowChart({ transactions = [] }: CashFlowChartProps) {
     import("recharts").then((mod) => setRecharts(mod));
   }, [isVisible, Recharts]);
 
-  // Generate last 7 days data from actual transactions or mock if empty
+  // Generate data based on selected time range
   const data = useMemo(() => {
-    const days = 7;
     const result = [];
+    const today = new Date();
+    let daysToProcess: Date[] = [];
+
+    if (timeRange === "week") {
+      // Last 7 days
+      for (let i = 6; i >= 0; i--) {
+        daysToProcess.push(subDays(today, i));
+      }
+    } else {
+      // Current month days so far (or last 30 days? let's do last 30 days for better chart)
+      for (let i = 29; i >= 0; i--) {
+        daysToProcess.push(subDays(today, i));
+      }
+    }
     
-    for (let i = days - 1; i >= 0; i--) {
-      const date = subDays(new Date(), i);
+    // Process each day
+    daysToProcess.forEach(date => {
+      // Find transactions for this day
+      // Note: This simple filtering might be slow if transactions array is huge, 
+      // but for Dashboard top 20/50 it's fine. 
+      // Ideally we should receive pre-aggregated data or full list for chart.
+      // Since Dashboard only receives top 20 transactions by default, this chart 
+      // might be inaccurate if we don't fetch more. 
+      // For now we assume 'transactions' prop contains enough history or we accept it shows only recent ones.
+      // TODO: In a real app, this component should probably fetch its own aggregated data.
+      
       const dayTransactions = transactions.filter(t => isSameDay(new Date(t.date), date));
       
       const income = dayTransactions
@@ -46,17 +72,15 @@ export function CashFlowChart({ transactions = [] }: CashFlowChartProps) {
         .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-      // Fallback to random data for demo if no transactions
-      const hasData = transactions.length > 0;
-      
       result.push({
         name: format(date, 'MM/dd'),
-        income: hasData ? income : Math.floor(Math.random() * 5000) + 2000,
-        expense: hasData ? expense : Math.floor(Math.random() * 3000) + 1000,
+        income: income,
+        expense: expense,
       });
-    }
+    });
+
     return result;
-  }, [transactions]);
+  }, [transactions, timeRange]);
 
   if (!Recharts || !isVisible) {
     return (
@@ -66,7 +90,7 @@ export function CashFlowChart({ transactions = [] }: CashFlowChartProps) {
     );
   }
 
-  const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Defs, LinearGradient, Stop } = Recharts;
+  const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = Recharts;
 
   return (
     <div ref={containerRef} className="flex-[2] glass-card p-6 flex flex-col min-w-[300px]">
@@ -76,11 +100,33 @@ export function CashFlowChart({ transactions = [] }: CashFlowChartProps) {
             <ArrowUpRight className="w-4 h-4 text-neon-purple" />
             资金流向分析
           </h3>
-          <p className="text-xs text-gray-500 mt-1">收入 vs 支出 (近7天)</p>
+          <p className="text-xs text-gray-500 mt-1">
+            收入 vs 支出 ({timeRange === "week" ? "近7天" : "近30天"})
+          </p>
         </div>
         <div className="flex gap-2">
-          <button className="px-3 py-1 rounded-lg bg-white/5 text-xs text-white border border-white/10 hover:bg-white/10 transition-colors">周</button>
-          <button className="px-3 py-1 rounded-lg bg-transparent text-xs text-gray-500 hover:text-white transition-colors">月</button>
+          <button 
+            onClick={() => setTimeRange("week")}
+            className={cn(
+              "px-3 py-1 rounded-lg text-xs transition-colors",
+              timeRange === "week" 
+                ? "bg-white/10 text-white border border-white/10" 
+                : "bg-transparent text-gray-500 hover:text-white"
+            )}
+          >
+            周
+          </button>
+          <button 
+            onClick={() => setTimeRange("month")}
+            className={cn(
+              "px-3 py-1 rounded-lg text-xs transition-colors",
+              timeRange === "month" 
+                ? "bg-white/10 text-white border border-white/10" 
+                : "bg-transparent text-gray-500 hover:text-white"
+            )}
+          >
+            月
+          </button>
           <button className="p-1.5 rounded-lg bg-transparent text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
             <Calendar className="w-3.5 h-3.5" />
           </button>
@@ -107,6 +153,7 @@ export function CashFlowChart({ transactions = [] }: CashFlowChartProps) {
               tickLine={false} 
               tick={{fill: '#6B7280', fontSize: 12}} 
               dy={10}
+              interval={timeRange === 'month' ? 4 : 0}
             />
             <YAxis 
               axisLine={false} 
