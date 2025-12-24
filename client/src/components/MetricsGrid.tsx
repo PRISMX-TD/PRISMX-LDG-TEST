@@ -1,5 +1,6 @@
-import { Wallet, CreditCard, Coins, TrendingUp, MoreHorizontal, ArrowUpRight } from "lucide-react";
+import { Wallet, CreditCard, Coins, TrendingUp, ArrowUpRight, Eye, EyeOff } from "lucide-react";
 import { getCurrencyInfo } from "@shared/schema";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
 
 interface MetricsGridProps {
   totalAssets: number;
@@ -25,6 +26,8 @@ export function MetricsGrid({
   currencyCode = "MYR" 
 }: MetricsGridProps) {
   const currency = getCurrencyInfo(currencyCode);
+  const { isPrivacyMode, togglePrivacyMode } = usePrivacyMode();
+  
   const netSavings = monthlyIncome - monthlyExpense;
   const savingsRate = monthlyIncome > 0 ? ((netSavings / monthlyIncome) * 100).toFixed(1) : "0";
   const expenseRate = monthlyIncome > 0 ? ((monthlyExpense / monthlyIncome) * 100).toFixed(1) : "0";
@@ -41,6 +44,7 @@ export function MetricsGrid({
   const incomeTrend = calculateTrend(monthlyIncome, prevMonthlyIncome);
 
   const formatMoney = (amount: number) => {
+    if (isPrivacyMode) return "******";
     return `${currency.symbol} ${amount.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
@@ -78,7 +82,17 @@ export function MetricsGrid({
             <Wallet className="w-4 h-4 text-blue-400" />
             总资产估值
           </div>
-          <MoreHorizontal className="w-4 h-4 text-gray-600 cursor-pointer hover:text-white" />
+          <button 
+            onClick={togglePrivacyMode}
+            className="text-gray-600 hover:text-white transition-colors focus:outline-none"
+            title={isPrivacyMode ? "显示金额" : "隐藏金额"}
+          >
+            {isPrivacyMode ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+          </button>
         </div>
         <div className="mt-auto">
           <div className="text-2xl sm:text-3xl font-bold text-white mb-3 tracking-tight group-hover:text-blue-200 transition-colors font-mono truncate">
@@ -98,7 +112,17 @@ export function MetricsGrid({
             <CreditCard className="w-4 h-4 text-neon-purple" />
             可灵活调用
           </div>
-          <MoreHorizontal className="w-4 h-4 text-gray-600 cursor-pointer hover:text-white" />
+          <button 
+            onClick={togglePrivacyMode}
+            className="text-gray-600 hover:text-white transition-colors focus:outline-none"
+            title={isPrivacyMode ? "显示金额" : "隐藏金额"}
+          >
+            {isPrivacyMode ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+          </button>
         </div>
         <div className="mt-auto">
           <div className="text-2xl sm:text-3xl font-bold text-white mb-3 tracking-tight group-hover:text-purple-200 transition-colors font-mono truncate">

@@ -2,6 +2,7 @@ import { List, Filter, Download, Coffee, Smartphone, Briefcase, ShoppingBag, Hom
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import type { Transaction } from "@shared/schema";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
 
 interface RecentTransactionsProps {
   transactions: any[]; // Using any[] for now as it includes joined fields
@@ -26,6 +27,8 @@ const getCategoryColor = (color: string) => {
 };
 
 export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+  const { isPrivacyMode } = usePrivacyMode();
+
   return (
     <div className="glass-card mb-6">
       <div className="p-6 border-b border-white/5 flex justify-between items-center">
@@ -91,7 +94,13 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                     {format(new Date(t.date), "MM月dd日 HH:mm", { locale: zhCN })}
                   </td>
                   <td className={`px-6 py-4 text-right font-medium transition-colors font-mono ${amountClass}`}>
-                    {sign} {t.wallet?.currency} {parseFloat(t.amount).toFixed(2)}
+                    {isPrivacyMode ? (
+                      "******"
+                    ) : (
+                      <>
+                        {sign} {t.wallet?.currency} {parseFloat(t.amount).toFixed(2)}
+                      </>
+                    )}
                   </td>
                 </tr>
               );

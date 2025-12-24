@@ -1,6 +1,7 @@
-import { TrendingUp, Wallet, MoreHorizontal } from "lucide-react";
+import { TrendingUp, Wallet, Eye, EyeOff } from "lucide-react";
 import type { Wallet as WalletType } from "@shared/schema";
 import { getCurrencyInfo } from "@shared/schema";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
 
 interface TotalAssetsCardProps {
   wallets: WalletType[];
@@ -10,6 +11,7 @@ interface TotalAssetsCardProps {
 
 export function TotalAssetsCard({ wallets, isLoading, defaultCurrency = "MYR" }: TotalAssetsCardProps) {
   const currencyInfo = getCurrencyInfo(defaultCurrency);
+  const { isPrivacyMode, togglePrivacyMode } = usePrivacyMode();
   
   // Calculate total in default currency using exchange rates
   const totalInDefaultCurrency = wallets.reduce((sum, wallet) => {
@@ -34,7 +36,7 @@ export function TotalAssetsCard({ wallets, isLoading, defaultCurrency = "MYR" }:
             <Wallet className="w-4 h-4 text-blue-400" />
             总资产
           </div>
-          <MoreHorizontal className="w-4 h-4 text-gray-600" />
+          <div className="w-4 h-4" /> {/* Placeholder for alignment */}
         </div>
         <div className="h-8 w-48 bg-white/10 rounded animate-pulse" />
       </div>
@@ -48,10 +50,26 @@ export function TotalAssetsCard({ wallets, isLoading, defaultCurrency = "MYR" }:
           <Wallet className="w-4 h-4 text-blue-400" />
           总资产
         </div>
-        <MoreHorizontal className="w-4 h-4 text-gray-600 cursor-pointer hover:text-white" />
+        <button 
+          onClick={togglePrivacyMode}
+          className="text-gray-600 hover:text-white transition-colors focus:outline-none"
+          title={isPrivacyMode ? "显示金额" : "隐藏金额"}
+        >
+          {isPrivacyMode ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
+        </button>
       </div>
       <div className="text-3xl font-bold text-white mb-1 group-hover:text-blue-200 transition-colors font-mono">
-        {currencyInfo.symbol} {totalInDefaultCurrency.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        {isPrivacyMode ? (
+          "******"
+        ) : (
+          <>
+            {currencyInfo.symbol} {totalInDefaultCurrency.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </>
+        )}
       </div>
       <div className="flex items-center gap-2 mt-2">
         <div className="flex items-center text-xs text-green-400 bg-green-400/10 px-2 py-0.5 rounded">

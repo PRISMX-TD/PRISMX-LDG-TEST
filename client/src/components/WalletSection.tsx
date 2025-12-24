@@ -1,5 +1,6 @@
 import { Wifi, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
 
 interface WalletSectionProps {
   userName?: string;
@@ -8,6 +9,8 @@ interface WalletSectionProps {
 }
 
 export function WalletSection({ userName = "USER", defaultWalletBalance = 0, currency = "MYR" }: WalletSectionProps) {
+  const { isPrivacyMode } = usePrivacyMode();
+  
   // Fetch exchange rate (USD to CNY for demo, or based on user prefs)
   const { data: exchangeRate } = useQuery({
     queryKey: [`/api/exchange-rate?from=USD&to=${currency}`],
@@ -29,7 +32,13 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
         
         <div className="relative z-10">
           <div className="text-2xl font-mono text-white tracking-widest mb-4 drop-shadow-md">
-            {currency} {defaultWalletBalance.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {isPrivacyMode ? (
+              "**** **** ****"
+            ) : (
+              <>
+                {currency} {defaultWalletBalance.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </>
+            )}
           </div>
           <div className="flex justify-between items-end">
             <div>

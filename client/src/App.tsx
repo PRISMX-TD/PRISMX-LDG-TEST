@@ -286,14 +286,18 @@ function Router() {
   return <AuthenticatedLayout />;
 }
 
+import { PrivacyModeProvider } from "@/hooks/usePrivacyMode";
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-        <PWAUpdatePrompt />
-      </TooltipProvider>
+      <PrivacyModeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+          <PWAUpdatePrompt />
+        </TooltipProvider>
+      </PrivacyModeProvider>
     </QueryClientProvider>
   );
 }
