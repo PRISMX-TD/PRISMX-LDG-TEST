@@ -21,7 +21,7 @@ export function DashboardHeader({ onAddTransaction }: DashboardHeaderProps) {
   };
   
   return (
-    <header className="h-20 flex items-center justify-between px-8 py-4 z-20 shrink-0">
+    <header className="h-20 flex items-center justify-between px-8 py-4 shrink-0">
       {/* Left: Title & Breadcrumb */}
       <div className="flex items-center gap-4">
         {/* We use a simple button here that relies on the parent layout's context if available, 

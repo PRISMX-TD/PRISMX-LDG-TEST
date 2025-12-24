@@ -193,7 +193,7 @@ export default function Dashboard() {
       <div className="ambient-glow-2"></div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
+      <div className="flex-1 flex flex-col relative overflow-hidden">
         <DashboardHeader onAddTransaction={() => {
           setEditingTransaction(null);
           setIsModalOpen(true);
