@@ -1,5 +1,4 @@
 import { PageContainer } from "@/components/PageContainer";
-import { Header } from "@/components/Header";
 import { WalletCard, WalletCardSkeleton } from "@/components/WalletCard";
 import { WalletModal } from "@/components/WalletModal";
 import { TotalAssetsCard } from "@/components/TotalAssetsCard";
@@ -288,10 +287,6 @@ export default function Wallets() {
 
   return (
     <PageContainer scrollable={false}>
-      <div className="hidden md:block mb-4">
-        <Header user={user} />
-      </div>
-
       <div className="flex-1 flex flex-col min-h-0 space-y-4 md:space-y-6">
         <div className="hidden md:flex items-center gap-4">
           <Link href="/">
