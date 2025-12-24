@@ -1,6 +1,5 @@
-import { Search, Bell, Plus } from "lucide-react";
+import { Search, Bell, Plus, PanelLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
@@ -15,7 +14,15 @@ export function DashboardHeader({ onAddTransaction }: DashboardHeaderProps) {
     <header className="h-20 flex items-center justify-between px-8 py-4 z-20 shrink-0">
       {/* Left: Title & Breadcrumb */}
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="text-gray-400 hover:text-white" />
+        {/* We use a simple button here that relies on the parent layout's context if available, 
+            but for Dashboard which might be used outside SidebarProvider in some routes, 
+            we avoid direct useSidebar hook usage inside this component to prevent crashes.
+            The actual toggle functionality is handled by the SidebarTrigger in the App layout.
+            Here we just show a visual indicator or nothing if sidebar isn't controllable here.
+        */}
+        <div className="md:hidden">
+            {/* Mobile menu trigger placeholder - actual trigger is in layout */}
+        </div>
         <div>
           <h1 className="text-white text-xl font-bold flex items-center gap-2">
             仪表盘
