@@ -55,17 +55,17 @@ function AuthenticatedLayout() {
   return (
     <>
       {/* Desktop Layout */}
-      <div className="hidden md:block min-h-screen bg-background text-foreground relative">
+      <div className="hidden md:block h-screen overflow-hidden bg-background text-foreground relative">
         <SimpleSidebar user={user} />
         
         {/* Main Content Area - Shifted by Sidebar Width */}
-        <div className="pl-64 min-h-screen flex flex-col relative z-0">
+        <div className="pl-64 h-full flex flex-col relative z-0">
           {!isDashboard && (
             <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-4 border-b border-primary/10 bg-background/40 backdrop-blur-xl px-8">
               <h2 className="text-sm font-medium text-gray-400">PRISMX Ledger</h2>
             </header>
           )}
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 h-full overflow-hidden">
             <Switch>
               <Route path="/auth" component={() => (
                 <Suspense fallback={SuspenseFallback}> 
@@ -163,9 +163,9 @@ function AuthenticatedLayout() {
       </div>
 
       {/* Mobile Layout */}
-      <div className="md:hidden flex flex-col min-h-screen">
+      <div className="md:hidden flex flex-col h-screen overflow-hidden">
         <MobileHeader user={user} />
-        <main className="flex-1 overflow-auto pb-20">
+        <main className="flex-1 overflow-hidden pb-20">
           <Switch>
             <Route path="/auth" component={() => (
               <Suspense fallback={SuspenseFallback}> 
