@@ -560,34 +560,33 @@ export default function Split() {
                         {compute.settlements.length > 0 ? (
                           <div className="space-y-1">
                             {compute.settlements.map((s, i) => (
-                              <div key={i} className="flex justify-between">
-                                <span>{current.members.find(m => m.id === s.fromId)?.name} → {current.members.find(m => m.id === s.toId)?.name}</span>
-                                <span className="font-mono">{s.amount.toFixed(2)} {current.currency}</span>
-                              </div>
-                            ))}
+                          <div key={i} className="flex justify-between">
+                            <span>{current.members.find(m => m.id === s.fromId)?.name} → {current.members.find(m => m.id === s.toId)?.name}</span>
+                            <span className="font-mono">{s.amount.toFixed(2)} {current.currency}</span>
                           </div>
-                        ) : (
-                          <div className="text-muted-foreground">暂无清算建议</div>
-                        )}
+                        ))}
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-muted-foreground">添加费用后可计算净值与清算建议</div>
-                  )}
-                </CardContent>
-                </Card>
-                <div className="flex md:items-center">
-                  <Button onClick={saveComputed} className="w-full md:w-auto">
-                    <Calculator className="w-4 h-4 mr-1" />计算并保存
-                  </Button>
-                </div>
-              </div>
+                    ) : (
+                      <div className="text-muted-foreground">暂无清算建议</div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="text-muted-foreground">添加费用后可计算净值与清算建议</div>
+              )}
+            </CardContent>
+            </Card>
+            <div className="flex md:items-center">
+              <Button onClick={saveComputed} className="w-full md:w-auto">
+                <Calculator className="w-4 h-4 mr-1" />计算并保存
+              </Button>
             </div>
-
-          </CardContent>
-        </Card>
-      )}
-      </div>
-    </PageContainer>
-  );
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )}
+  </div>
+</PageContainer>
+);
 }
