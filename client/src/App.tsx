@@ -60,11 +60,6 @@ function AuthenticatedLayout() {
         
         {/* Main Content Area - Shifted by Sidebar Width */}
         <div className="pl-64 h-full flex flex-col relative z-0">
-          {!isDashboard && (
-            <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-4 border-b border-primary/10 bg-background/40 backdrop-blur-xl px-8">
-              <h2 className="text-sm font-medium text-gray-400">PRISMX Ledger</h2>
-            </header>
-          )}
           <main className="flex-1 h-full overflow-hidden">
             <Switch>
               <Route path="/auth" component={() => (
