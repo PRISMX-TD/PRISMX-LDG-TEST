@@ -323,6 +323,9 @@ export default function Reports() {
           <p>• 点击"导出CSV"可下载详细交易记录</p>
         </CardContent>
       </Card>
-    </div>
+          </>
+        )}
+      </div>
+    </PageContainer>
   );
 }

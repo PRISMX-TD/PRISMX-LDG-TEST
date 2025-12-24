@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -592,13 +593,7 @@ export default function Analytics() {
     updatePreferencesMutation.mutate({ [key]: !preferences[key] });
   };
 
-  if (isTransactionsLoading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+
 
   const months = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
   const currentMonth = new Date().getMonth();
@@ -666,6 +661,12 @@ export default function Analytics() {
             </Button>
           </div>
           
+        {isTransactionsLoading ? (
+          <div className="p-6 flex items-center justify-center min-h-[60vh]">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
           {/* Time Period Controls */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-xl glass-card border-0">
             <div className="flex items-center gap-2">
