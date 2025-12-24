@@ -22,7 +22,7 @@ export function PageContainer({ children, className, scrollable = true }: PageCo
             {children}
           </div>
         ) : (
-          <div className={cn("flex-1 flex flex-col p-4 md:p-8", className)}>
+          <div className={cn("flex-1 flex flex-col min-h-0 p-4 md:p-8", className)}>
             {children}
           </div>
         )}
