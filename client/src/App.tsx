@@ -4,8 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider, SidebarTrigger, SidebarInset, SidebarRail } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { SimpleSidebar } from "@/components/SimpleSidebar";
 import { MobileNavBar } from "@/components/MobileNavBar";
 import { MobileHeader } from "@/components/MobileHeader";
 import { PWAUpdatePrompt } from "@/components/PWAUpdatePrompt";
@@ -53,122 +52,114 @@ function AuthenticatedLayout() {
     return null;
   }
 
-  const sidebarStyle = {
-    "--sidebar-width": "16rem",
-    "--sidebar-width-icon": "3.5rem",
-  } as React.CSSProperties;
-
   return (
     <>
       {/* Desktop Layout */}
-      <div className="hidden md:block h-screen">
-        <SidebarProvider style={sidebarStyle}>
-          <div className="flex h-screen w-full overflow-hidden">
-            <AppSidebar user={user} />
-            <SidebarRail />
-            <SidebarInset className="flex flex-col flex-1 min-w-0 bg-transparent relative z-0">
-              {!isDashboard && (
-                <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-4 border-b border-primary/10 bg-background/40 backdrop-blur-xl px-4">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" className="-ml-1" />
-                </header>
-              )}
-              <main className="flex-1 overflow-auto">
-                <Switch>
-                  <Route path="/auth" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Dashboard />
-                    </Suspense>
-                  )} />
-                  <Route path="/" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Dashboard />
-                    </Suspense>
-                  )} />
-                  <Route path="/transactions" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Transactions />
-                    </Suspense>
-                  )} />
-                  <Route path="/categories" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Categories />
-                    </Suspense>
-                  )} />
-                  <Route path="/wallets" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Wallets />
-                    </Suspense>
-                  )} />
-                  <Route path="/wallets/:id" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <WalletDetail />
-                    </Suspense>
-                  )} />
-                  <Route path="/exchange" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Exchange />
-                    </Suspense>
-                  )} />
-                  <Route path="/budgets" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Budgets />
-                    </Suspense>
-                  )} />
-                  <Route path="/savings" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Savings />
-                    </Suspense>
-                  )} />
-                  <Route path="/recurring" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Recurring />
-                    </Suspense>
-                  )} />
-                  <Route path="/reminders" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Reminders />
-                    </Suspense>
-                  )} />
-                  <Route path="/analytics" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Analytics />
-                    </Suspense>
-                  )} />
-                  <Route path="/reports" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Reports />
-                    </Suspense>
-                  )} />
-                  <Route path="/sub-ledgers" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <SubLedgers />
-                    </Suspense>
-                  )} />
-                  <Route path="/split" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Split />
-                    </Suspense>
-                  )} />
-                  <Route path="/split/:id" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Split />
-                    </Suspense>
-                  )} />
-                  <Route path="/settings" component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <Settings />
-                    </Suspense>
-                  )} />
-                  <Route component={() => (
-                    <Suspense fallback={SuspenseFallback}> 
-                      <NotFound />
-                    </Suspense>
-                  )} />
-                </Switch>
-              </main>
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
+      <div className="hidden md:block min-h-screen bg-background text-foreground relative">
+        <SimpleSidebar user={user} />
+        
+        {/* Main Content Area - Shifted by Sidebar Width */}
+        <div className="pl-64 min-h-screen flex flex-col relative z-0">
+          {!isDashboard && (
+            <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-4 border-b border-primary/10 bg-background/40 backdrop-blur-xl px-8">
+              <h2 className="text-sm font-medium text-gray-400">PRISMX Ledger</h2>
+            </header>
+          )}
+          <main className="flex-1 overflow-auto">
+            <Switch>
+              <Route path="/auth" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Dashboard />
+                </Suspense>
+              )} />
+              <Route path="/" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Dashboard />
+                </Suspense>
+              )} />
+              <Route path="/transactions" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Transactions />
+                </Suspense>
+              )} />
+              <Route path="/categories" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Categories />
+                </Suspense>
+              )} />
+              <Route path="/wallets" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Wallets />
+                </Suspense>
+              )} />
+              <Route path="/wallets/:id" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <WalletDetail />
+                </Suspense>
+              )} />
+              <Route path="/exchange" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Exchange />
+                </Suspense>
+              )} />
+              <Route path="/budgets" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Budgets />
+                </Suspense>
+              )} />
+              <Route path="/savings" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Savings />
+                </Suspense>
+              )} />
+              <Route path="/recurring" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Recurring />
+                </Suspense>
+              )} />
+              <Route path="/reminders" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Reminders />
+                </Suspense>
+              )} />
+              <Route path="/analytics" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Analytics />
+                </Suspense>
+              )} />
+              <Route path="/reports" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Reports />
+                </Suspense>
+              )} />
+              <Route path="/sub-ledgers" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <SubLedgers />
+                </Suspense>
+              )} />
+              <Route path="/split" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Split />
+                </Suspense>
+              )} />
+              <Route path="/split/:id" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Split />
+                </Suspense>
+              )} />
+              <Route path="/settings" component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <Settings />
+                </Suspense>
+              )} />
+              <Route component={() => (
+                <Suspense fallback={SuspenseFallback}> 
+                  <NotFound />
+                </Suspense>
+              )} />
+            </Switch>
+          </main>
+        </div>
       </div>
 
       {/* Mobile Layout */}
