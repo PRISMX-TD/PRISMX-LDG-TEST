@@ -394,8 +394,11 @@ export default function SubLedgers() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>{stats.count} 笔交易</span>
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                                <Receipt className="w-3.5 h-3.5" />
+                                <span>{stats.count} 笔交易</span>
+                            </div>
                             <span className="truncate">余额: {stats.balance.toFixed(2)}</span>
                           </div>
                         </CardContent>
