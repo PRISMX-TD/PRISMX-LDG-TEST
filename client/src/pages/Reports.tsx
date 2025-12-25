@@ -192,8 +192,8 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="glass-card hover-elevate border-0 group relative overflow-hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
+        <Card className="glass-card hover-elevate border-0 group relative overflow-hidden h-full min-h-[140px] flex flex-col justify-between">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-income" />
@@ -201,13 +201,13 @@ export default function Reports() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold font-mono text-white group-hover:text-income transition-colors">
+            <p className="text-2xl font-bold font-mono text-white group-hover:text-income transition-colors truncate">
               +{currencyInfo.symbol}{reportData.totalIncome.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="glass-card hover-elevate border-0 group relative overflow-hidden">
+        <Card className="glass-card hover-elevate border-0 group relative overflow-hidden h-full min-h-[140px] flex flex-col justify-between">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
               <TrendingDown className="w-4 h-4 text-expense" />
@@ -215,34 +215,34 @@ export default function Reports() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold font-mono text-white group-hover:text-expense transition-colors">
+            <p className="text-2xl font-bold font-mono text-white group-hover:text-expense transition-colors truncate">
               -{currencyInfo.symbol}{reportData.totalExpense.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="glass-card hover-elevate border-0 group relative overflow-hidden">
+        <Card className="glass-card hover-elevate border-0 group relative overflow-hidden h-full flex flex-col justify-between">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">净收入</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-2xl font-bold font-mono text-white transition-colors ${reportData.netIncome >= 0 ? "group-hover:text-income" : "group-hover:text-expense"}`}>
+            <p className={`text-2xl font-bold font-mono text-white transition-colors truncate ${reportData.netIncome >= 0 ? "group-hover:text-income" : "group-hover:text-expense"}`}>
               {reportData.netIncome >= 0 ? "+" : ""}{currencyInfo.symbol}{reportData.netIncome.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="glass-card hover-elevate border-0 group relative overflow-hidden">
+        <Card className="glass-card hover-elevate border-0 group relative overflow-hidden h-full min-h-[140px] flex flex-col justify-between">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">交易笔数</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-white group-hover:text-neon-purple transition-colors">{reportData.transactionCount}</p>
+            <p className="text-2xl font-bold text-white group-hover:text-neon-purple transition-colors truncate">{reportData.transactionCount}</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <Card className="glass-card border-0">
           <CardHeader>
             <CardTitle className="text-base text-gray-200">分类明细</CardTitle>

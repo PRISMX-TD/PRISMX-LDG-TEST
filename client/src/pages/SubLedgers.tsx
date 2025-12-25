@@ -154,257 +154,257 @@ export default function SubLedgers() {
   return (
     <PageContainer>
       <div className="space-y-5 md:space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            返回
-          </Button>
-        </Link>
-        <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
-          <BookOpen className="w-6 h-6 text-neon-purple" />
-          子账本
-        </h1>
-        <div className="flex items-center gap-3 ml-auto">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="showArchived"
-              checked={showArchived}
-              onCheckedChange={setShowArchived}
-              data-testid="switch-show-archived"
-            />
-            <label htmlFor="showArchived" className="text-sm text-muted-foreground cursor-pointer">
-              显示已归档
-            </label>
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              返回
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-semibold flex items-center gap-2 text-white">
+            <BookOpen className="w-6 h-6 text-neon-purple" />
+            子账本
+          </h1>
+          <div className="flex items-center gap-3 ml-auto">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="showArchived"
+                checked={showArchived}
+                onCheckedChange={setShowArchived}
+                data-testid="switch-show-archived"
+              />
+              <label htmlFor="showArchived" className="text-sm text-muted-foreground cursor-pointer hidden sm:block">
+                显示已归档
+              </label>
+            </div>
+            <Button onClick={() => setModalOpen(true)} data-testid="button-add-subledger">
+              <Plus className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">新建子账本</span>
+              <span className="sm:hidden">新建</span>
+            </Button>
           </div>
-          <Button onClick={() => setModalOpen(true)} data-testid="button-add-subledger">
-            <Plus className="w-4 h-4 mr-1" />
-            新建子账本
-          </Button>
         </div>
-      </div>
 
-      {isLoading ? (
-        <div className="p-6 flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <>
-          {activeSubLedgers.length === 0 && !showArchived ? (
-        <EmptyState
-          icon={BookOpen}
-          title="暂无子账本"
-          description="子账本可以帮助你单独追踪特定项目或旅行的收支"
-          actionLabel="创建子账本"
-          onAction={() => setModalOpen(true)}
-        />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {activeSubLedgers.map((subLedger) => {
-            const stats = getSubLedgerStats(subLedger.id);
-            return (
-              <Card
-                key={subLedger.id}
-                className="glass-card hover-elevate relative overflow-visible"
-                data-testid={`card-subledger-${subLedger.id}`}
-              >
-                <div
-                  className="absolute top-0 left-0 right-0 h-1 rounded-t-lg"
-                  style={{ backgroundColor: subLedger.color || "#8B5CF6" }}
-                />
-                <CardHeader className="pb-2 pt-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
+        {isLoading ? (
+          <div className="p-6 flex items-center justify-center min-h-[60vh]">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
+            {activeSubLedgers.length === 0 && !showArchived ? (
+              <EmptyState
+                icon={BookOpen}
+                title="暂无子账本"
+                description="子账本可以帮助你单独追踪特定项目或旅行的收支"
+                actionLabel="创建子账本"
+                onAction={() => setModalOpen(true)}
+              />
+            ) : (
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {activeSubLedgers.map((subLedger) => {
+                  const stats = getSubLedgerStats(subLedger.id);
+                  return (
+                    <Card
+                      key={subLedger.id}
+                      className="glass-card hover-elevate relative overflow-visible h-full flex flex-col justify-between"
+                      data-testid={`card-subledger-${subLedger.id}`}
+                    >
                       <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${subLedger.color || "#8B5CF6"}20` }}
-                      >
-                        <BookOpen className="w-5 h-5" style={{ color: subLedger.color || "#8B5CF6" }} />
-                      </div>
-                      <div className="min-w-0">
-                        <CardTitle className="text-base truncate">{subLedger.name}</CardTitle>
-                        <Badge variant="secondary" className="text-xs mt-0.5">
-                          {ICON_LABELS[subLedger.icon || "other"] || "其他"}
-                        </Badge>
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="shrink-0" data-testid={`button-menu-subledger-${subLedger.id}`}>
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(subLedger)}>
-                          <Pencil className="w-4 h-4 mr-2" />
-                          编辑
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => archiveMutation.mutate({ id: subLedger.id, isArchived: true })}>
-                          <Archive className="w-4 h-4 mr-2" />
-                          归档
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setDeleteTarget(subLedger)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          删除
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {subLedger.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {subLedger.description}
-                    </p>
-                  )}
-                  
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Receipt className="w-3.5 h-3.5" />
-                      <span>{stats.count} 笔交易</span>
-                    </div>
-                    {(subLedger.startDate || subLedger.endDate) && (
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>
-                          {subLedger.startDate ? format(new Date(subLedger.startDate), "MM/dd") : "?"}
-                          {" - "}
-                          {subLedger.endDate ? format(new Date(subLedger.endDate), "MM/dd") : "?"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
-                    <div>
-                      <p className="text-xs text-muted-foreground">收入</p>
-                      <p className="text-sm font-mono text-income">+{stats.income.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">支出</p>
-                      <p className="text-sm font-mono text-expense">-{stats.expense.toFixed(2)}</p>
-                    </div>
-                  </div>
-
-                  {subLedger.budgetAmount && parseFloat(subLedger.budgetAmount) > 0 && (
-                    <div className="space-y-2 pt-2 border-t border-border/50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Target className="w-3.5 h-3.5" />
-                          <span>预算</span>
+                        className="absolute top-0 left-0 right-0 h-1 rounded-t-lg"
+                        style={{ backgroundColor: subLedger.color || "#8B5CF6" }}
+                      />
+                      <CardHeader className="pb-2 pt-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${subLedger.color || "#8B5CF6"}20` }}
+                            >
+                              <BookOpen className="w-5 h-5" style={{ color: subLedger.color || "#8B5CF6" }} />
+                            </div>
+                            <div className="min-w-0">
+                              <CardTitle className="text-base truncate">{subLedger.name}</CardTitle>
+                              <Badge variant="secondary" className="text-xs mt-0.5">
+                                {ICON_LABELS[subLedger.icon || "other"] || "其他"}
+                              </Badge>
+                            </div>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="shrink-0" data-testid={`button-menu-subledger-${subLedger.id}`}>
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(subLedger)}>
+                                <Pencil className="w-4 h-4 mr-2" />
+                                编辑
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => archiveMutation.mutate({ id: subLedger.id, isArchived: true })}>
+                                <Archive className="w-4 h-4 mr-2" />
+                                归档
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeleteTarget(subLedger)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                删除
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                        <span className="text-xs font-mono">
-                          {stats.expense.toFixed(0)} / {parseFloat(subLedger.budgetAmount).toFixed(0)}
-                        </span>
-                      </div>
-                      {(() => {
-                        const budget = parseFloat(subLedger.budgetAmount);
-                        const percentage = Math.min((stats.expense / budget) * 100, 100);
-                        const isOverBudget = stats.expense > budget;
-                        return (
-                          <>
-                            <Progress 
-                              value={percentage} 
-                              className={`h-2 ${isOverBudget ? "[&>div]:bg-destructive" : "[&>div]:bg-primary"}`}
-                            />
-                            <div className="flex items-center justify-between text-xs">
-                              <span className={isOverBudget ? "text-destructive flex items-center gap-1" : "text-muted-foreground"}>
-                                {isOverBudget && <AlertTriangle className="w-3 h-3" />}
-                                {isOverBudget 
-                                  ? `超支 ${(stats.expense - budget).toFixed(2)}` 
-                                  : `剩余 ${(budget - stats.expense).toFixed(2)}`
-                                }
-                              </span>
-                              <span className={isOverBudget ? "text-destructive font-medium" : "text-muted-foreground"}>
-                                {((stats.expense / budget) * 100).toFixed(0)}%
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {subLedger.description && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {subLedger.description}
+                          </p>
+                        )}
+                        
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Receipt className="w-3.5 h-3.5" />
+                            <span>{stats.count} 笔交易</span>
+                          </div>
+                          {(subLedger.startDate || subLedger.endDate) && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>
+                                {subLedger.startDate ? format(new Date(subLedger.startDate), "MM/dd") : "?"}
+                                {" - "}
+                                {subLedger.endDate ? format(new Date(subLedger.endDate), "MM/dd") : "?"}
                               </span>
                             </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2 pt-2">
-                    <ChartLine className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      {subLedger.includeInMainAnalytics ? "计入总账分析" : "独立统计"}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {showArchived && archivedSubLedgers.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
-            <Archive className="w-5 h-5" />
-            已归档 ({archivedSubLedgers.length})
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {archivedSubLedgers.map((subLedger) => {
-              const stats = getSubLedgerStats(subLedger.id);
-              return (
-                <Card
-                  key={subLedger.id}
-                  className="glass-card opacity-60"
-                  data-testid={`card-subledger-archived-${subLedger.id}`}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center"
-                          style={{ backgroundColor: `${subLedger.color || "#8B5CF6"}20` }}
-                        >
-                          <BookOpen className="w-5 h-5" style={{ color: subLedger.color || "#8B5CF6" }} />
+                          )}
                         </div>
-                        <div>
-                          <CardTitle className="text-base">{subLedger.name}</CardTitle>
-                          <Badge variant="outline" className="text-xs mt-0.5">已归档</Badge>
-                        </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => archiveMutation.mutate({ id: subLedger.id, isArchived: false })}>
-                            <ArchiveRestore className="w-4 h-4 mr-2" />
-                            恢复
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setDeleteTarget(subLedger)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            删除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>{stats.count} 笔交易</span>
-                      <span>余额: {stats.balance.toFixed(2)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
+                          <div>
+                            <p className="text-xs text-muted-foreground">收入</p>
+                            <p className="text-sm font-mono text-income truncate">+{stats.income.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">支出</p>
+                            <p className="text-sm font-mono text-expense truncate">-{stats.expense.toFixed(2)}</p>
+                          </div>
+                        </div>
+
+                        {subLedger.budgetAmount && parseFloat(subLedger.budgetAmount) > 0 && (
+                          <div className="space-y-2 pt-2 border-t border-border/50">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Target className="w-3.5 h-3.5" />
+                                <span>预算</span>
+                              </div>
+                              <span className="text-xs font-mono truncate max-w-[50%] text-right">
+                                {stats.expense.toFixed(0)} / {parseFloat(subLedger.budgetAmount).toFixed(0)}
+                              </span>
+                            </div>
+                            {(() => {
+                              const budget = parseFloat(subLedger.budgetAmount);
+                              const percentage = Math.min((stats.expense / budget) * 100, 100);
+                              const isOverBudget = stats.expense > budget;
+                              return (
+                                <>
+                                  <Progress 
+                                    value={percentage} 
+                                    className={`h-2 ${isOverBudget ? "[&>div]:bg-destructive" : "[&>div]:bg-primary"}`}
+                                  />
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className={isOverBudget ? "text-destructive flex items-center gap-1 truncate max-w-[60%]" : "text-muted-foreground truncate max-w-[60%]"}>
+                                      {isOverBudget && <AlertTriangle className="w-3 h-3 shrink-0" />}
+                                      {isOverBudget 
+                                        ? `超支 ${(stats.expense - budget).toFixed(2)}` 
+                                        : `剩余 ${(budget - stats.expense).toFixed(2)}`
+                                      }
+                                    </span>
+                                    <span className={isOverBudget ? "text-destructive font-medium" : "text-muted-foreground"}>
+                                      {((stats.expense / budget) * 100).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-2">
+                          <ChartLine className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            {subLedger.includeInMainAnalytics ? "计入总账分析" : "独立统计"}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {showArchived && archivedSubLedgers.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
+                  <Archive className="w-5 h-5" />
+                  已归档 ({archivedSubLedgers.length})
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                  {archivedSubLedgers.map((subLedger) => {
+                    const stats = getSubLedgerStats(subLedger.id);
+                    return (
+                      <Card
+                        key={subLedger.id}
+                        className="glass-card opacity-60 h-full flex flex-col justify-between"
+                        data-testid={`card-subledger-archived-${subLedger.id}`}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div
+                                className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ backgroundColor: `${subLedger.color || "#8B5CF6"}20` }}
+                              >
+                                <BookOpen className="w-5 h-5" style={{ color: subLedger.color || "#8B5CF6" }} />
+                              </div>
+                              <div className="min-w-0">
+                                <CardTitle className="text-base truncate">{subLedger.name}</CardTitle>
+                                <Badge variant="outline" className="text-xs mt-0.5">已归档</Badge>
+                              </div>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="shrink-0">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => archiveMutation.mutate({ id: subLedger.id, isArchived: false })}>
+                                  <ArchiveRestore className="w-4 h-4 mr-2" />
+                                  恢复
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => setDeleteTarget(subLedger)}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  删除
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span>{stats.count} 笔交易</span>
+                            <span className="truncate">余额: {stats.balance.toFixed(2)}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </>
         )}
 
