@@ -200,13 +200,13 @@ export default function SubLedgers() {
                 onAction={() => setModalOpen(true)}
               />
             ) : (
-              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {activeSubLedgers.map((subLedger) => {
                   const stats = getSubLedgerStats(subLedger.id);
                   return (
                     <Card
                       key={subLedger.id}
-                      className="glass-card hover-elevate relative overflow-visible h-full min-h-[320px] flex flex-col"
+                      className="glass-card hover-elevate relative overflow-visible h-full min-h-[340px] flex flex-col"
                       data-testid={`card-subledger-${subLedger.id}`}
                     >
                       <div
