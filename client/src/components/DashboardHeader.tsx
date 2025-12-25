@@ -68,11 +68,6 @@ export function DashboardHeader({ onAddTransaction }: DashboardHeaderProps) {
         </div>
 
         {/* Buttons */}
-        <button className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-neon-purple/30 transition-all relative">
-          <div className="absolute top-2 right-2.5 w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-          <Bell className="w-4 h-4" />
-        </button>
-        
         <Button 
           onClick={onAddTransaction}
           className="bg-neon-purple hover:bg-neon-dark text-white px-3 md:px-4 py-2 h-8 md:h-9 rounded-lg text-xs md:text-sm font-medium shadow-neon transition-all flex items-center gap-1.5 md:gap-2 border-none"

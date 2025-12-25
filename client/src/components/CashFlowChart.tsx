@@ -127,7 +127,7 @@ export function CashFlowChart({ transactions = [] }: CashFlowChartProps) {
           >
             月
           </button>
-          <button className="p-1.5 rounded-lg bg-transparent text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
+          <button className="p-1.5 rounded-lg bg-transparent text-gray-500 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50" title="功能开发中">
             <Calendar className="w-3.5 h-3.5" />
           </button>
         </div>
