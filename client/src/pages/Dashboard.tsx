@@ -266,6 +266,7 @@ export default function Dashboard() {
           <RecentTransactions 
             transactions={transactions} 
             onTransactionClick={(transaction) => {
+              console.log("Dashboard transaction clicked:", transaction);
               setEditingTransaction(transaction);
               setIsModalOpen(true);
             }}

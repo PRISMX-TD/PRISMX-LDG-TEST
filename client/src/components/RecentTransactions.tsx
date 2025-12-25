@@ -70,8 +70,11 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
               return (
                 <tr 
                   key={t.id} 
-                  className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
-                  onClick={() => onTransactionClick && onTransactionClick(t)}
+                  className="hover:bg-white/[0.02] active:bg-white/[0.04] transition-colors group cursor-pointer"
+                  onClick={() => {
+                    console.log("Row clicked", t);
+                    if (onTransactionClick) onTransactionClick(t);
+                  }}
                 >
                   <td className="px-6 py-4 flex items-center">
                     <div className="w-9 h-9 rounded-lg bg-[#000] border border-white/10 flex items-center justify-center mr-3 text-white">
