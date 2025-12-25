@@ -36,9 +36,6 @@ export function DashboardHeader({ onAddTransaction }: DashboardHeaderProps) {
         <div>
           <h1 className="text-white text-lg md:text-xl font-bold flex items-center gap-2">
             仪表盘
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-neon-purple/20 text-neon-glow border border-neon-purple/20">
-              LIVE
-            </span>
           </h1>
           <p className="text-[10px] md:text-xs text-gray-500 mt-0.5 md:mt-1 capitalize">
             {format(today, "yyyy年MM月dd日 · EEEE", { locale: zhCN })}
