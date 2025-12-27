@@ -20,6 +20,7 @@ import { MetricsGrid } from "@/components/MetricsGrid";
 import { CashFlowChart } from "@/components/CashFlowChart";
 import { WalletSection } from "@/components/WalletSection";
 import { RecentTransactions } from "@/components/RecentTransactions";
+import { DashboardCustomizeModal } from "@/components/DashboardCustomizeModal";
 
 interface TransactionWithRelations extends Transaction {
   category?: Category | null;
@@ -36,6 +37,7 @@ export default function Dashboard() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [, setLocation] = useLocation();
   const searchString = useSearch();
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
@@ -82,6 +84,14 @@ export default function Dashboard() {
     }
   }, [isAuthenticated]);
 
+  const { data: dashboardPrefs } = useQuery({
+    queryKey: ["/api/dashboard-preferences"],
+    enabled: isAuthenticated,
+  });
+  const { data: analyticsPrefs } = useQuery({
+    queryKey: ["/api/analytics-preferences"],
+    enabled: isAuthenticated,
+  });
   // Helper function to convert transaction amount to user's default currency
   const getConvertedAmount = (t: Transaction): number => {
     const rawAmount = parseFloat(t.amount || "0");
@@ -240,27 +250,37 @@ export default function Dashboard() {
             prevTotalAssets={prevTotalAssets}
             prevLiquidAssets={prevLiquidAssets}
             currencyCode={userCurrency}
+            showTotalAssets={dashboardPrefs?.showTotalAssets !== false}
+            showMonthlyIncome={dashboardPrefs?.showMonthlyIncome !== false}
+            showMonthlyExpense={dashboardPrefs?.showMonthlyExpense !== false}
+            showFlexibleFunds={dashboardPrefs?.showFlexibleFunds === true}
           />
 
           {/* Charts & Cards Section */}
           <div className="flex flex-col lg:flex-row gap-6 mb-8">
-            <CashFlowChart transactions={transactions} />
-            <WalletSection 
-              userName={user.username} 
-              defaultWalletBalance={defaultWalletBalance}
-              currency={userCurrency}
-            />
+            {(analyticsPrefs?.showCashflowTrend !== false) && (
+              <CashFlowChart transactions={transactions} />
+            )}
+            {(dashboardPrefs?.showWallets !== false) && (
+              <WalletSection 
+                userName={user.username} 
+                defaultWalletBalance={defaultWalletBalance}
+                currency={userCurrency}
+              />
+            )}
           </div>
 
           {/* Recent Transactions Table */}
-          <RecentTransactions 
-            transactions={transactions} 
-            onTransactionClick={(transaction) => {
-              console.log("Dashboard transaction clicked:", transaction);
-              setEditingTransaction(transaction);
-              setIsModalOpen(true);
-            }}
-          />
+          {(dashboardPrefs?.showRecentTransactions !== false) && (
+            <RecentTransactions 
+              transactions={transactions} 
+              onTransactionClick={(transaction) => {
+                console.log("Dashboard transaction clicked:", transaction);
+                setEditingTransaction(transaction);
+                setIsModalOpen(true);
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -287,6 +307,7 @@ export default function Dashboard() {
         wallet={selectedWallet}
         defaultCurrency={user?.defaultCurrency || "MYR"}
       />
+      <DashboardCustomizeModal open={isCustomizeOpen} onOpenChange={setIsCustomizeOpen} />
     </div>
   );
 }

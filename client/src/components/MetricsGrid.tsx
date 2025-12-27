@@ -7,6 +7,10 @@ interface MetricsGridProps {
   liquidAssets: number;
   monthlyExpense: number;
   monthlyIncome: number;
+  showTotalAssets?: boolean;
+  showMonthlyIncome?: boolean;
+  showMonthlyExpense?: boolean;
+  showFlexibleFunds?: boolean;
   prevMonthlyExpense?: number;
   prevMonthlyIncome?: number;
   prevTotalAssets?: number;
@@ -19,6 +23,10 @@ export function MetricsGrid({
   liquidAssets,
   monthlyExpense, 
   monthlyIncome, 
+  showTotalAssets = true,
+  showMonthlyIncome = true,
+  showMonthlyExpense = true,
+  showFlexibleFunds = false,
   prevMonthlyExpense = 0,
   prevMonthlyIncome = 0,
   prevTotalAssets = 0,
@@ -73,8 +81,10 @@ export function MetricsGrid({
     );
   };
 
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6 mb-8">
+  const cards: JSX.Element[] = [];
+
+  if (showTotalAssets) {
+    cards.push(
       {/* 1. Total Assets */}
       <div className="glass-card p-4 md:p-5 flex flex-col justify-between h-full min-h-[140px] group relative overflow-hidden">
         <div className="flex items-center justify-between mb-2">
@@ -104,7 +114,11 @@ export function MetricsGrid({
           </div>
         </div>
       </div>
+    );
+  }
 
+  if (showFlexibleFunds) {
+    cards.push(
       {/* 2. Liquid Assets (Flexible Funds) */}
       <div className="glass-card p-4 md:p-5 flex flex-col justify-between h-full min-h-[140px] group relative overflow-hidden">
         <div className="flex items-center justify-between mb-2">
@@ -125,7 +139,11 @@ export function MetricsGrid({
           </div>
         </div>
       </div>
+    );
+  }
 
+  if (showMonthlyIncome) {
+    cards.push(
       {/* 3. Monthly Income */}
       <div className="glass-card p-4 md:p-5 flex flex-col justify-between h-full min-h-[140px] group relative overflow-hidden">
         <div className="flex items-center justify-between mb-2">
@@ -146,7 +164,11 @@ export function MetricsGrid({
           </div>
         </div>
       </div>
+    );
+  }
 
+  if (showMonthlyExpense) {
+    cards.push(
       {/* 4. Monthly Expense */}
       <div className="glass-card p-4 md:p-5 flex flex-col justify-between h-full min-h-[140px] group relative overflow-hidden">
         <div className="flex items-center justify-between mb-2">
@@ -173,6 +195,12 @@ export function MetricsGrid({
           </div>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6 mb-8">
+      {cards}
     </div>
   );
 }
