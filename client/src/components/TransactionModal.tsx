@@ -289,6 +289,15 @@ export function TransactionModal({
 
   const handleConvertedInputChange = (value: string) => {
     form.setValue("convertedAmount", value, { shouldValidate: false });
+    const num = parseFloat(value);
+    const amountStr = form.getValues("amount");
+    const amount = parseFloat(amountStr);
+    if (!isNaN(num) && num >= 0 && !isNaN(amount) && amount > 0) {
+      const newRate = (num / amount).toFixed(4);
+      form.setValue("exchangeRate", newRate, { shouldValidate: false });
+      setConversionPref("byConverted");
+      try { localStorage.setItem("tx_conversion_pref", "byConverted"); } catch {}
+    }
   };
 
   const handleConvertedInputBlur = (value: string) => {
