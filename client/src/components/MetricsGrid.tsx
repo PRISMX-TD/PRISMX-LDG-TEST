@@ -85,7 +85,7 @@ export function MetricsGrid({
 
   if (showTotalAssets) {
     cards.push(
-      {/* 1. Total Assets */}
+      // 1. Total Assets
       <div className="glass-card p-4 md:p-5 flex flex-col justify-between h-full min-h-[140px] group relative overflow-hidden">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
@@ -119,7 +119,7 @@ export function MetricsGrid({
 
   if (showFlexibleFunds) {
     cards.push(
-      {/* 2. Liquid Assets (Flexible Funds) */}
+      // 2. Liquid Assets (Flexible Funds)
       <div className="glass-card p-4 md:p-5 flex flex-col justify-between h-full min-h-[140px] group relative overflow-hidden">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
@@ -144,7 +144,7 @@ export function MetricsGrid({
 
   if (showMonthlyIncome) {
     cards.push(
-      {/* 3. Monthly Income */}
+      // 3. Monthly Income
       <div className="glass-card p-4 md:p-5 flex flex-col justify-between h-full min-h-[140px] group relative overflow-hidden">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
@@ -169,7 +169,7 @@ export function MetricsGrid({
 
   if (showMonthlyExpense) {
     cards.push(
-      {/* 4. Monthly Expense */}
+      // 4. Monthly Expense
       <div className="glass-card p-4 md:p-5 flex flex-col justify-between h-full min-h-[140px] group relative overflow-hidden">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
