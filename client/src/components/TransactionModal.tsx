@@ -549,6 +549,7 @@ export function TransactionModal({
         }
         // fall through to local OCR if not updated
       } catch (errDeep: any) {
+        console.warn("DeepSeek OCR failed, falling back to local Tesseract:", errDeep);
         // fallback to local tesseract
       }
       const worker = await Tesseract.createWorker({
