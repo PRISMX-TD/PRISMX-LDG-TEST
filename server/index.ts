@@ -36,14 +36,14 @@ app.use((req, res, next) => {
     "geolocation=(), microphone=(), camera=(), fullscreen=(self)"
   );
   const scriptSrc = isProd ? "script-src 'self' blob: 'wasm-unsafe-eval'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:";
-  const workerSrc = "worker-src 'self' blob:";
+  const workerSrc = "worker-src 'self' blob: data:";
   const csp = [
     "default-src 'self'",
     "connect-src 'self' blob: data: https://fonts.googleapis.com https://fonts.gstatic.com https://tessdata.projectnaptha.com",
     "img-src 'self' data:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    scriptSrc,
+    scriptSrc.replace("blob:", "blob: data:"), // Allow data: in script-src for wasm wrapper
     workerSrc,
     "frame-ancestors 'none'",
   ].join("; ");

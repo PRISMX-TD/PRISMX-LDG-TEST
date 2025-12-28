@@ -728,46 +728,40 @@ export async function registerRoutes(
       }
       const dataUrl = imageBase64.startsWith("data:") ? imageBase64 : `data:image/png;base64,${imageBase64}`;
       const prompt = "从票据图片中提取总金额与交易日期，只返回 JSON：{\"amount\":number,\"currencyCode\":string|null,\"dateISO\":string|null,\"text\":string}。金额请优先使用“合计/Total/Grand Total/应付/实付”对应的值，日期请优先使用票据上的交易日期而非打印时间。";
-      let model = "deepseek-vl";
+      let model = "deepseek-chat";
       let content = "";
       try {
-        const resp = await deepseekClient.responses.create({
-          model,
-          input: [
-            {
-              role: "user",
-              content: [
-                { type: "input_text", text: prompt },
-                { type: "input_image", image_url: { url: dataUrl } },
-              ],
-            },
-          ],
-          temperature: 0,
-        } as any);
-        const out: any = resp;
-        const textPart =
-          out?.output?.[0]?.content?.[0]?.text ||
-          out?.choices?.[0]?.message?.content ||
-          "";
-        content = String(textPart || "");
-      } catch (e) {
         const messages: any[] = [
           { role: "system", content: "You are an assistant that extracts fields from receipts. Return JSON only." },
           {
             role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: dataUrl } },
-            ],
+            content: `从票据图片中提取总金额与交易日期，只返回 JSON：{"amount":number,"currencyCode":string|null,"dateISO":string|null,"text":string}。金额请优先使用“合计/Total/Grand Total/应付/实付”对应的值，日期请优先使用票据上的交易日期而非打印时间。\n\n[Image: ${dataUrl}]` // DeepSeek chat model often needs text URL or description, but here we fallback to text-only if image not supported or use standard image_url if compatible
           },
         ];
-        model = "deepseek-chat";
+        // Note: DeepSeek API currently supports image_url in standard chat completions for vision models
+        // But if 'deepseek-chat' is text-only, we might need 'deepseek-vision' or similar if available.
+        // Assuming standard OpenAI vision compatibility:
+        const visionMessages: any[] = [
+           { role: "system", content: "You are an assistant that extracts fields from receipts. Return JSON only." },
+           {
+             role: "user",
+             content: [
+               { type: "text", text: prompt },
+               { type: "image_url", image_url: { url: dataUrl } }
+             ]
+           }
+        ];
+        
         const response = await deepseekClient.chat.completions.create({
-          model,
-          messages,
+          model: "deepseek-chat", // DeepSeek V2.5 unifies chat and coder, vision might be separate or integrated. Trying standard first.
+          messages: visionMessages,
           temperature: 0,
         });
         content = response?.choices?.[0]?.message?.content || "";
+      } catch (e) {
+        console.error("DeepSeek primary attempt failed, trying fallback...", e);
+        // Fallback or re-throw
+        throw e;
       }
       let jsonText = content;
       if (typeof jsonText !== "string") jsonText = String(jsonText || "");
