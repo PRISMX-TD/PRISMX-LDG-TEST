@@ -47,11 +47,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, Loader2, ArrowRightLeft, RefreshCw, Trash2, BookOpen } from "lucide-react";
+import { CalendarIcon, Loader2, ArrowRightLeft, RefreshCw, Trash2, BookOpen, Scan } from "lucide-react";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import type { Wallet, Category, TransactionType, Transaction, SubLedger } from "@shared/schema";
 import { supportedCurrencies, getCurrencyInfo } from "@shared/schema";
+import Tesseract from "tesseract.js";
 
 interface TransactionModalProps {
   open: boolean;
@@ -113,6 +114,8 @@ export function TransactionModal({
   const isEditing = !!transaction;
   const [activeTab, setActiveTab] = useState<TransactionType>("expense");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -455,6 +458,89 @@ export function TransactionModal({
   const currencyInfo = getCurrencyInfo(watchCurrency);
   const walletCurrencyInfo = selectedWallet ? getCurrencyInfo(selectedWallet.currency) : null;
 
+  const parseAmountFromText = (text: string) => {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const keywordRegex = /(合计|总计|应付|金额|Total|TOTAL|Amount|AMT|Grand\s*Total|Balance\s*Due)/i;
+    const numberRegex = /(?:RM|MYR|RMB|¥|￥|\$|USD)?\s*([0-9]{1,3}(?:[,\s][0-9]{3})*(?:\.[0-9]{2})|[0-9]+(?:\.[0-9]{2})?)/g;
+    let candidate = 0;
+    for (const line of lines) {
+      if (keywordRegex.test(line)) {
+        const nums = Array.from(line.matchAll(numberRegex)).map((m) => m[1]);
+        for (const n of nums) {
+          const normalized = parseFloat(n.replace(/[\s,]/g, ""));
+          if (!isNaN(normalized) && normalized > candidate) candidate = normalized;
+        }
+      }
+    }
+    if (candidate > 0) return candidate;
+    const allNums = Array.from(text.matchAll(numberRegex)).map((m) => m[1]);
+    for (const n of allNums) {
+      const normalized = parseFloat(n.replace(/[\s,]/g, ""));
+      if (!isNaN(normalized) && normalized > candidate) candidate = normalized;
+    }
+    return candidate > 0 ? candidate : null;
+  };
+
+  const parseDateFromText = (text: string) => {
+    const chinese = text.match(/([12]\d{3})年(\d{1,2})月(\d{1,2})日/);
+    if (chinese) {
+      const y = parseInt(chinese[1], 10);
+      const m = parseInt(chinese[2], 10);
+      const d = parseInt(chinese[3], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m - 1, d);
+    }
+    const iso = text.match(/([12]\d{3})[-\/\.](\d{1,2})[-\/\.](\d{1,2})/);
+    if (iso) {
+      const y = parseInt(iso[1], 10);
+      const m = parseInt(iso[2], 10);
+      const d = parseInt(iso[3], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m - 1, d);
+    }
+    const us = text.match(/\b(\d{1,2})[-\/\.](\d{1,2})[-\/\.]([12]\d{3})\b/);
+    if (us) {
+      const m = parseInt(us[1], 10);
+      const d = parseInt(us[2], 10);
+      const y = parseInt(us[3], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m - 1, d);
+    }
+    return null;
+  };
+
+  const handleOcrClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsOcrLoading(true);
+    try {
+      const { data } = await Tesseract.recognize(file, "eng", { logger: () => {} });
+      const text = data.text || "";
+      const amt = parseAmountFromText(text);
+      const dt = parseDateFromText(text);
+      let updated = false;
+      if (amt && amt > 0) {
+        form.setValue("amount", amt.toFixed(2), { shouldValidate: true });
+        updated = true;
+      }
+      if (dt) {
+        form.setValue("date", dt, { shouldValidate: true });
+        updated = true;
+      }
+      if (updated) {
+        toast({ title: "识别成功", description: "已自动填充金额与日期" });
+      } else {
+        toast({ title: "未识别到有效信息", description: "请尝试更清晰的票据照片", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "识别失败", description: err?.message || "请稍后重试", variant: "destructive" });
+    } finally {
+      setIsOcrLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" data-testid="modal-transaction" aria-describedby={undefined}>
@@ -543,6 +629,31 @@ export function TransactionModal({
                   </FormItem>
                 )}
               />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-muted-foreground"></div>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileSelected}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOcrClick}
+                  disabled={isOcrLoading}
+                  className="h-8"
+                  data-testid="button-ocr-receipt"
+                >
+                  {isOcrLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Scan className="mr-2 h-3.5 w-3.5" />}
+                  识别票据
+                </Button>
+              </div>
             </div>
 
             {needsCurrencyConversion && (
