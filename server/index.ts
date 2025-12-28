@@ -36,15 +36,15 @@ app.use((req, res, next) => {
     "geolocation=(), microphone=(), camera=(), fullscreen=(self)"
   );
   const scriptSrc = isProd ? "script-src 'self' blob: 'wasm-unsafe-eval'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:";
-  const workerSrc = "worker-src 'self' blob: data:";
+  // Note: Tesseract worker needs to load blobs and sometimes data: uris for wasm
   const csp = [
     "default-src 'self'",
     "connect-src 'self' blob: data: https://fonts.googleapis.com https://fonts.gstatic.com https://tessdata.projectnaptha.com",
     "img-src 'self' data: https:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    scriptSrc.replace("blob:", "blob: data:"), // Allow data: in script-src for wasm wrapper
-    workerSrc,
+    scriptSrc.replace("blob:", "blob: data:"), 
+    "worker-src 'self' blob: data:", // Explicit worker-src covering data: and blob:
     "frame-ancestors 'none'",
   ].join("; ");
   res.setHeader("Content-Security-Policy", csp);
