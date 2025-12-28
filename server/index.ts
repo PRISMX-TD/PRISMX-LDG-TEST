@@ -38,7 +38,7 @@ app.use((req, res, next) => {
   const workerSrc = "worker-src 'self' blob:";
   const csp = [
     "default-src 'self'",
-    "connect-src 'self' blob: https://fonts.googleapis.com https://fonts.gstatic.com https://tessdata.projectnaptha.com",
+    "connect-src 'self' blob: data: https://fonts.googleapis.com https://fonts.gstatic.com https://tessdata.projectnaptha.com",
     "img-src 'self' data:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",

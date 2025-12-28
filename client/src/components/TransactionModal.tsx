@@ -526,9 +526,9 @@ export function TransactionModal({
         workerBlobURL: false,
         logger: () => {},
       });
-      await worker.load();
       await worker.loadLanguage("eng");
-      await worker.initialize("eng");
+      await worker.loadLanguage("chi_sim");
+      await worker.initialize("eng+chi_sim");
       const { data } = await worker.recognize(file);
       await worker.terminate();
       const text = data.text || "";
