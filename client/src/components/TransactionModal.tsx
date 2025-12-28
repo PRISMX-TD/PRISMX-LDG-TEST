@@ -163,12 +163,68 @@ export function TransactionModal({
   const watchAmount = form.watch("amount");
   const watchExchangeRate = form.watch("exchangeRate");
   const watchConvertedAmount = form.watch("convertedAmount");
+  const watchDescription = form.watch("description");
 
   const selectedWallet = wallets.find((w) => String(w.id) === watchWalletId);
   const selectedToWallet = wallets.find((w) => String(w.id) === watchToWalletId);
 
   const needsCurrencyConversion = selectedWallet && watchCurrency !== selectedWallet.currency;
   const needsTransferConversion = activeTab === "transfer" && selectedWallet && selectedToWallet && selectedWallet.currency !== selectedToWallet.currency;
+
+  const [categoryLocked, setCategoryLocked] = useState(false);
+  const learnedMapRef = useRef<Record<string, { type: TransactionType; name: string }>>(() => {
+    try {
+      const raw = localStorage.getItem("tx_category_learn_map");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  } as any);
+  const saveLearnMap = (m: Record<string, { type: TransactionType; name: string }>) => {
+    try {
+      localStorage.setItem("tx_category_learn_map", JSON.stringify(m));
+    } catch {}
+  };
+  const findCategoryIdByName = (name: string, type: TransactionType): string | null => {
+    const list = categories.filter(c => c.type === (type === "income" ? "income" : "expense"));
+    const match = list.find(c => c.name === name);
+    return match ? String(match.id) : null;
+  };
+  const suggestCategoryFromText = (text: string, type: TransactionType): string | null => {
+    if (!text || type === "transfer") return null;
+    const lower = text.toLowerCase();
+    const learnedKeys = Object.keys(learnedMapRef.current || {});
+    for (const k of learnedKeys) {
+      const v = learnedMapRef.current[k];
+      if (v && v.type === type && lower.includes(k.toLowerCase())) {
+        const id = findCategoryIdByName(v.name, type);
+        if (id) return id;
+      }
+    }
+    const expenseRules: Array<{ re: RegExp; name: string }> = [
+      { re: /(麦当劳|mcdonald|肯德基|kfc|星巴克|starbucks|必胜客|pizza|外卖|美团|饿了么|奶茶|咖啡|餐厅|饭店|burger\s*king|汉堡王)/i, name: "餐饮" },
+      { re: /(淘宝|天猫|京东|jd|拼多多|pdd|shopee|lazada|闲鱼|当当|购物|超市|mall|沃尔玛|walmart|carrefour|家乐福)/i, name: "购物" },
+      { re: /(打车|出租|滴滴|didi|uber|grab|公交|地铁|火车|高铁|航空|机票|停车|加油|油费|tng|touch\s*n\s*go|etc|过路费)/i, name: "交通" },
+      { re: /(房租|租金|水费|电费|煤气|燃气|网费|宽带|物业|维修|装修)/i, name: "住房" },
+      { re: /(游戏|steam|nintendo|playstation|netflix|spotify|电影|影院|ktv|酒吧|夜店|娱乐|腾讯视频|爱奇艺|优酷)/i, name: "娱乐" },
+      { re: /(医院|药房|pharmacy|挂号|体检|牙科|dental|医保|药品|drug|health)/i, name: "医疗" },
+      { re: /(学费|培训|课程|书籍|教材|考试|辅导|网课|udemy|coursera|edx)/i, name: "教育" },
+      { re: /(礼物|礼品|gift|纪念|生日|节日|红包)/i, name: "礼物" },
+    ];
+    const incomeRules: Array<{ re: RegExp; name: string }> = [
+      { re: /(工资|薪资|salary|payroll|paycheck|发薪)/i, name: "工资" },
+      { re: /(奖金|提成|bonus|分红|佣金|reward)/i, name: "奖金" },
+      { re: /(投资|收益|股息|dividend|利息|interest|理财|基金|回款|返利)/i, name: "投资" },
+    ];
+    const rules = type === "income" ? incomeRules : expenseRules;
+    for (const r of rules) {
+      if (r.re.test(text)) {
+        const id = findCategoryIdByName(r.name, type);
+        if (id) return id;
+      }
+    }
+    return null;
+  };
 
   const fetchExchangeRate = useCallback(async (from: string, to: string) => {
     if (from === to) {
@@ -244,6 +300,7 @@ export function TransactionModal({
         date: new Date(),
       });
       setRateError(null);
+      setCategoryLocked(false);
     }
   }, [open, transaction, wallets, form, defaultCurrency]);
 
@@ -293,6 +350,18 @@ export function TransactionModal({
       }
     }
   }, [watchAmount, watchExchangeRate, needsCurrencyConversion, form, watchConvertedAmount, conversionPref]);
+
+  useEffect(() => {
+    if (activeTab === "transfer") return;
+    if (categoryLocked) return;
+    const id = suggestCategoryFromText(watchDescription || "", activeTab);
+    if (id) {
+      const current = form.getValues("categoryId");
+      if (!current) {
+        form.setValue("categoryId", id, { shouldValidate: true });
+      }
+    }
+  }, [watchDescription, activeTab, categoryLocked, filteredCategories]);
 
   const handleConvertedInputChange = (value: string) => {
     form.setValue("convertedAmount", value, { shouldValidate: false });
@@ -391,6 +460,28 @@ export function TransactionModal({
       }
     },
     onSuccess: () => {
+      const desc = form.getValues("description") || "";
+      const type = form.getValues("type");
+      const catId = form.getValues("categoryId");
+      if (desc && catId && type !== "transfer") {
+        const cat = categories.find(c => String(c.id) === catId);
+        if (cat) {
+          const tokens: string[] = [];
+          const cn = Array.from(desc.match(/[\u4e00-\u9fa5]{2,}/g) || []);
+          const en = Array.from(desc.match(/[A-Za-z0-9][A-Za-z0-9&\-\s]{2,}/g) || []);
+          for (const t of [...cn, ...en]) {
+            const key = t.trim().toLowerCase();
+            if (key.length >= 2 && !tokens.includes(key)) tokens.push(key);
+            if (tokens.length >= 3) break;
+          }
+          let map = learnedMapRef.current || {};
+          for (const tk of tokens) {
+            map[tk] = { type: type, name: cat.name };
+          }
+          learnedMapRef.current = map;
+          saveLearnMap(map);
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/wallets"] });
       toast({
@@ -400,6 +491,7 @@ export function TransactionModal({
       onOpenChange(false);
       form.reset();
       setActiveTab("expense");
+      setCategoryLocked(false);
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -464,23 +556,24 @@ export function TransactionModal({
 
   const parseAmountFromText = (text: string) => {
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    const keywordRegex = /(合计|总计|应付|金额|Total|TOTAL|Amount|AMT|Grand\s*Total|Balance\s*Due)/i;
-    const numberRegex = /(?:RM|MYR|RMB|¥|￥|\$|USD)?\s*([0-9]{1,3}(?:[,\s][0-9]{3})*(?:\.[0-9]{2})|[0-9]+(?:\.[0-9]{2})?)/g;
+    const keywordRegex = /(合计|总计|小计|应付|应收|金额|Total|TOTAL|Amount|AMT|Grand\s*Total|Balance\s*Due|Subtotal|Total\s*Due|付款金额)/i;
+    const numberRegex = /(?:RM|MYR|RMB|CNY|SGD|USD|EUR|GBP|¥|￥|€|£|\$|S\$)?\s*([0-9]{1,3}(?:[,\s][0-9]{3})*(?:\.[0-9]{1,3})|[0-9]+(?:\.[0-9]{1,3})?)/g;
+    const normalizeToken = (s: string) => s.replace(/[,\s]/g, "").replace(/[Oo]/g, "0").replace(/S/g, "5").replace(/[Il]/g, "1");
     let candidate = 0;
     for (const line of lines) {
       if (keywordRegex.test(line)) {
-        const nums = Array.from(line.matchAll(numberRegex)).map((m) => m[1]);
+        const nums = Array.from(line.matchAll(numberRegex)).map((m) => normalizeToken(m[1]));
         for (const n of nums) {
-          const normalized = parseFloat(n.replace(/[\s,]/g, ""));
-          if (!isNaN(normalized) && normalized > candidate) candidate = normalized;
+          const val = parseFloat(n);
+          if (!isNaN(val) && val > candidate) candidate = val;
         }
       }
     }
     if (candidate > 0) return candidate;
-    const allNums = Array.from(text.matchAll(numberRegex)).map((m) => m[1]);
+    const allNums = Array.from(text.matchAll(numberRegex)).map((m) => normalizeToken(m[1]));
     for (const n of allNums) {
-      const normalized = parseFloat(n.replace(/[\s,]/g, ""));
-      if (!isNaN(normalized) && normalized > candidate) candidate = normalized;
+      const val = parseFloat(n);
+      if (!isNaN(val) && val > candidate) candidate = val;
     }
     return candidate > 0 ? candidate : null;
   };
@@ -509,6 +602,20 @@ export function TransactionModal({
     }
     return null;
   };
+  const detectCurrencyCodeFromText = (text: string, fallback: string) => {
+    const t = text.toUpperCase();
+    if (/\bMYR\b/.test(t) || /\bRM\b/.test(t)) return "MYR";
+    if (/S\$/.test(text) || /\bSGD\b/.test(t)) return "SGD";
+    if (/\bUSD\b/.test(t) || /\$\s*[0-9]/.test(text)) return "USD";
+    if (/[¥￥]/.test(text) || /\bRMB\b/.test(t) || /\bCNY\b/.test(t)) return "CNY";
+    if (/€/.test(text) || /\bEUR\b/.test(t)) return "EUR";
+    if (/£/.test(text) || /\bGBP\b/.test(t)) return "GBP";
+    const codes = new Set(supportedCurrencies.map(c => c.code));
+    for (const c of codes) {
+      if (new RegExp(`\\b${c}\\b`, "i").test(text)) return c;
+    }
+    return fallback || null;
+  };
 
   const handleOcrClick = () => {
     fileInputRef.current?.click();
@@ -529,22 +636,47 @@ export function TransactionModal({
       await worker.loadLanguage("eng");
       await worker.loadLanguage("chi_sim");
       await worker.initialize("eng+chi_sim");
+      await worker.setParameters({
+        tessedit_char_whitelist: "0123456789.,RM MYR USD $ ¥ ￥ RMB CNY SGD EUR € GBP £",
+        preserve_interword_spaces: "1",
+        user_defined_dpi: "300",
+      });
       const { data } = await worker.recognize(file);
       await worker.terminate();
       const text = data.text || "";
       const amt = parseAmountFromText(text);
       const dt = parseDateFromText(text);
+      const cur = detectCurrencyCodeFromText(text, form.getValues("currency"));
       let updated = false;
+      const changes: string[] = [];
       if (amt && amt > 0) {
         form.setValue("amount", amt.toFixed(2), { shouldValidate: true });
         updated = true;
+        changes.push("金额");
       }
       if (dt) {
         form.setValue("date", dt, { shouldValidate: true });
         updated = true;
+        changes.push("日期");
+      }
+      if (cur && cur !== form.getValues("currency")) {
+        form.setValue("currency", cur, { shouldValidate: true });
+        updated = true;
+        changes.push("币种");
+      }
+      if (activeTab !== "transfer" && !categoryLocked) {
+        const id = suggestCategoryFromText(text, activeTab);
+        if (id) {
+          const current = form.getValues("categoryId");
+          if (!current) {
+            form.setValue("categoryId", id, { shouldValidate: true });
+            updated = true;
+            changes.push("分类");
+          }
+        }
       }
       if (updated) {
-        toast({ title: "识别成功", description: "已自动填充金额与日期" });
+        toast({ title: "识别成功", description: `已自动填充${changes.join("、")}` });
       } else {
         toast({ title: "未识别到有效信息", description: "请尝试更清晰的票据照片", variant: "destructive" });
       }
@@ -870,7 +1002,7 @@ export function TransactionModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>分类</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={(v) => { setCategoryLocked(true); field.onChange(v); }} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-category">
                           <SelectValue placeholder="选择分类" />
