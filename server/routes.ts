@@ -727,36 +727,56 @@ export async function registerRoutes(
         return res.status(400).json({ message: "缺少图片数据" });
       }
       const dataUrl = imageBase64.startsWith("data:") ? imageBase64 : `data:image/png;base64,${imageBase64}`;
-      const messages: any[] = [
-        { role: "system", content: "You are an assistant that extracts fields from receipts. Return JSON only." },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Extract total amount and transaction date. Return JSON: { amount:number, currencyCode:string|null, dateISO:string|null, text:string }" },
-            { type: "image_url", image_url: { url: dataUrl } },
-          ],
-        },
-      ];
+      const prompt = "从票据图片中提取总金额与交易日期，只返回 JSON：{\"amount\":number,\"currencyCode\":string|null,\"dateISO\":string|null,\"text\":string}。金额请优先使用“合计/Total/Grand Total/应付/实付”对应的值，日期请优先使用票据上的交易日期而非打印时间。";
       let model = "deepseek-vl";
-      let response: any;
+      let content = "";
       try {
-        response = await deepseekClient.chat.completions.create({
+        const resp = await deepseekClient.responses.create({
           model,
-          messages,
+          input: [
+            {
+              role: "user",
+              content: [
+                { type: "input_text", text: prompt },
+                { type: "input_image", image_url: { url: dataUrl } },
+              ],
+            },
+          ],
           temperature: 0,
-        });
+        } as any);
+        const out: any = resp;
+        const textPart =
+          out?.output?.[0]?.content?.[0]?.text ||
+          out?.choices?.[0]?.message?.content ||
+          "";
+        content = String(textPart || "");
       } catch (e) {
+        const messages: any[] = [
+          { role: "system", content: "You are an assistant that extracts fields from receipts. Return JSON only." },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          },
+        ];
         model = "deepseek-chat";
-        response = await deepseekClient.chat.completions.create({
+        const response = await deepseekClient.chat.completions.create({
           model,
           messages,
           temperature: 0,
         });
+        content = response?.choices?.[0]?.message?.content || "";
       }
-      const content = response?.choices?.[0]?.message?.content || "";
+      let jsonText = content;
+      if (typeof jsonText !== "string") jsonText = String(jsonText || "");
+      // Try to extract JSON block if model added extra text
+      const match = jsonText.match(/\{[\s\S]*\}/);
+      if (match) jsonText = match[0];
       let parsed: any = null;
       try {
-        parsed = JSON.parse(content);
+        parsed = JSON.parse(jsonText);
       } catch {
         parsed = null;
       }
