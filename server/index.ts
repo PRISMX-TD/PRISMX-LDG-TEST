@@ -39,8 +39,8 @@ app.use((req, res, next) => {
   // Note: Tesseract worker needs to load blobs and sometimes data: uris for wasm
   const csp = [
     "default-src 'self'",
-    "connect-src 'self' blob: data: https://fonts.googleapis.com https://fonts.gstatic.com https://tessdata.projectnaptha.com",
-    "img-src 'self' data: https:",
+    "connect-src 'self' blob: data: *",
+    "img-src 'self' data: https: blob:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     scriptSrc.replace("blob:", "blob: data:"), 
