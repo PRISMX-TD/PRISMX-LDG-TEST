@@ -172,14 +172,16 @@ export function TransactionModal({
   const needsTransferConversion = activeTab === "transfer" && selectedWallet && selectedToWallet && selectedWallet.currency !== selectedToWallet.currency;
 
   const [categoryLocked, setCategoryLocked] = useState(false);
-  const learnedMapRef = useRef<Record<string, { type: TransactionType; name: string }>>(() => {
-    try {
-      const raw = localStorage.getItem("tx_category_learn_map");
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  } as any);
+  const learnedMapRef = useRef<Record<string, { type: TransactionType; name: string }>>(
+    (() => {
+      try {
+        const raw = localStorage.getItem("tx_category_learn_map");
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    })()
+  );
   const saveLearnMap = (m: Record<string, { type: TransactionType; name: string }>) => {
     try {
       localStorage.setItem("tx_category_learn_map", JSON.stringify(m));
