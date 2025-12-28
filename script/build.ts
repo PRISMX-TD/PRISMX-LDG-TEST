@@ -37,7 +37,11 @@ async function buildAll() {
 
   console.log("building client...");
   await viteBuild();
-  await cp("client/dist", "dist/public", { recursive: true });
+  try {
+    await cp("client/dist", "dist/public", { recursive: true });
+  } catch {
+    console.log("skip copy: client/dist not present, assets already emitted to dist/public");
+  }
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
