@@ -1,8 +1,7 @@
 FROM node:20-bullseye AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm install --no-audit --no-fund
 COPY . .
+RUN npm install --no-audit --no-fund
 RUN npm run build
 
 FROM node:20-bullseye AS runner
@@ -11,6 +10,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./package.json
 ENV NODE_ENV=production
 EXPOSE 5000
 CMD ["node", "dist/index.cjs"]
