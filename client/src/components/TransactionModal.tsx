@@ -53,6 +53,10 @@ import { zhCN } from "date-fns/locale";
 import type { Wallet, Category, TransactionType, Transaction, SubLedger } from "@shared/schema";
 import { supportedCurrencies, getCurrencyInfo } from "@shared/schema";
 import Tesseract from "tesseract.js";
+// @ts-expect-error vite asset import
+import workerUrl from "tesseract.js/dist/worker.min.js?url";
+// @ts-expect-error vite asset import
+import coreUrl from "tesseract.js-core/tesseract-core-simd.wasm.js?url";
 
 interface TransactionModalProps {
   open: boolean;
@@ -515,7 +519,18 @@ export function TransactionModal({
     if (!file) return;
     setIsOcrLoading(true);
     try {
-      const { data } = await Tesseract.recognize(file, "eng", { logger: () => {} });
+      const worker = await Tesseract.createWorker({
+        workerPath: workerUrl,
+        corePath: coreUrl,
+        langPath: "https://tessdata.projectnaptha.com/4.0.0",
+        workerBlobURL: false,
+        logger: () => {},
+      });
+      await worker.load();
+      await worker.loadLanguage("eng");
+      await worker.initialize("eng");
+      const { data } = await worker.recognize(file);
+      await worker.terminate();
       const text = data.text || "";
       const amt = parseAmountFromText(text);
       const dt = parseDateFromText(text);
