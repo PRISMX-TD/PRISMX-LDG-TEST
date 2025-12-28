@@ -14,7 +14,6 @@ import {
 import { z } from "zod";
 import { encrypt, decrypt, getBalancesWithValues, fetchMexcAccountInfo } from "./mexc";
 import { validatePionexCredentials, getPionexBalancesWithValues } from "./pionex";
-import OpenAI from "openai";
 
 const supportedCurrencyCodes = supportedCurrencies.map(c => c.code);
 
@@ -22,10 +21,6 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  const deepseekClient = process.env.DEEPSEEK_API_KEY ? new OpenAI({
-    apiKey: process.env.DEEPSEEK_API_KEY,
-    baseURL: "https://api.deepseek.com",
-  }) : null;
   const exchangeRateCache = new Map<string, { rate: number; timestamp: number }>();
   const CACHE_DURATION = 3600 * 1000; // 1 hour
 
@@ -714,108 +709,6 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error exporting transactions:", error);
       res.status(500).json({ message: "Failed to export transactions" });
-    }
-  });
-
-  app.post('/api/ocr/deepseek', isAuthenticated, async (req: any, res) => {
-    try {
-      if (!deepseekClient) {
-        return res.status(503).json({ message: "DeepSeek API 未配置" });
-      }
-      const { imageBase64 } = req.body || {};
-      if (!imageBase64 || typeof imageBase64 !== 'string') {
-        return res.status(400).json({ message: "缺少图片数据" });
-      }
-
-      // Temporary disable DeepSeek OCR due to lack of image support in chat completions
-      // This allows frontend to fallback immediately without 500 error
-      if (true) {
-        return res.status(501).json({ message: "DeepSeek API 当前不支持图片输入" });
-      }
-
-      const dataUrl = imageBase64.startsWith("data:") ? imageBase64 : `data:image/png;base64,${imageBase64}`;
-      const prompt = "从票据图片中提取总金额与交易日期，只返回 JSON：{\"amount\":number,\"currencyCode\":string|null,\"dateISO\":string|null,\"text\":string}。金额请优先使用“合计/Total/Grand Total/应付/实付”对应的值，日期请优先使用票据上的交易日期而非打印时间。";
-      let model = "deepseek-chat";
-      let content = "";
-      try {
-        const messages: any[] = [
-          { role: "system", content: "You are an assistant that extracts fields from receipts. Return JSON only." },
-          {
-            role: "user",
-            content: `从票据图片中提取总金额与交易日期，只返回 JSON：{"amount":number,"currencyCode":string|null,"dateISO":string|null,"text":string}。金额请优先使用“合计/Total/Grand Total/应付/实付”对应的值，日期请优先使用票据上的交易日期而非打印时间。\n\n[Image: ${dataUrl}]` // DeepSeek chat model often needs text URL or description, but here we fallback to text-only if image not supported or use standard image_url if compatible
-          },
-        ];
-        // Note: DeepSeek API currently supports image_url in standard chat completions for vision models
-        // But if 'deepseek-chat' is text-only, we might need 'deepseek-vision' or similar if available.
-        // Assuming standard OpenAI vision compatibility:
-        const visionMessages: any[] = [
-           { role: "system", content: "You are an assistant that extracts fields from receipts. Return JSON only." },
-           {
-             role: "user",
-             content: [
-               { type: "text", text: prompt },
-               { type: "image_url", image_url: { url: dataUrl } }
-             ]
-           }
-        ];
-        
-        const response = await deepseekClient.chat.completions.create({
-          model: "deepseek-chat", // DeepSeek V2.5 unifies chat and coder, vision might be separate or integrated. Trying standard first.
-          messages: visionMessages,
-          temperature: 0,
-        });
-        content = response?.choices?.[0]?.message?.content || "";
-      } catch (e) {
-        console.error("DeepSeek primary attempt failed, trying fallback...", e);
-        // Fallback or re-throw
-        throw e;
-      }
-      let jsonText = content;
-      if (typeof jsonText !== "string") jsonText = String(jsonText || "");
-      // Try to extract JSON block if model added extra text
-      const match = jsonText.match(/\{[\s\S]*\}/);
-      if (match) jsonText = match[0];
-      let parsed: any = null;
-      try {
-        parsed = JSON.parse(jsonText);
-      } catch {
-        parsed = null;
-      }
-      const text = typeof parsed?.text === "string" ? parsed.text : content;
-      const numberRegex = /([0-9]{1,3}(?:[,\s][0-9]{3})*(?:\.[0-9]{2})|[0-9]+(?:\.[0-9]{2})?)/g;
-      const dateRegex = /([12]\d{3})[-\/\.](\d{1,2})[-\/\.](\d{1,2})|([12]\d{3})年(\d{1,2})月(\d{1,2})日|\b(\d{1,2})[-\/\.](\d{1,2})[-\/\.]([12]\d{3})\b/;
-      let amount: number | null = null;
-      let dateISO: string | null = null;
-      if (parsed?.amount && typeof parsed.amount === "number") {
-        amount = parsed.amount;
-      } else {
-        const nums = Array.from(String(text || "").matchAll(numberRegex)).map((m) => m[1]);
-        for (const n of nums) {
-          const normalized = parseFloat(n.replace(/[\s,]/g, ""));
-          if (!isNaN(normalized) && normalized > (amount || 0)) amount = normalized;
-        }
-      }
-      const dr = String(text || "").match(dateRegex);
-      if (dr) {
-        if (dr[1] && dr[2] && dr[3]) {
-          dateISO = new Date(parseInt(dr[1], 10), parseInt(dr[2], 10) - 1, parseInt(dr[3], 10)).toISOString();
-        } else if (dr[4] && dr[5] && dr[6]) {
-          dateISO = new Date(parseInt(dr[4], 10), parseInt(dr[5], 10) - 1, parseInt(dr[6], 10)).toISOString();
-        } else if (dr[7] && dr[8] && dr[9]) {
-          dateISO = new Date(parseInt(dr[9], 10), parseInt(dr[7], 10) - 1, parseInt(dr[8], 10)).toISOString();
-        }
-      }
-      const currencyCode = (parsed?.currencyCode && typeof parsed.currencyCode === "string") ? parsed.currencyCode : null;
-      res.json({
-        amount,
-        currencyCode,
-        dateISO,
-        text,
-        model,
-      });
-    } catch (error: any) {
-      console.error("DeepSeek OCR error:", error);
-      res.status(500).json({ message: error?.message || "OCR 失败" });
     }
   });
 

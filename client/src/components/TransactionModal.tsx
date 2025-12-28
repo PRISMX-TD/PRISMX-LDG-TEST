@@ -519,39 +519,6 @@ export function TransactionModal({
     if (!file) return;
     setIsOcrLoading(true);
     try {
-      const toBase64 = (f: File) => new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(",").pop() || "");
-        reader.onerror = reject;
-        reader.readAsDataURL(f);
-      });
-      // Prefer server-side DeepSeek
-      try {
-        const base64 = await toBase64(file);
-        const res = await apiRequest("POST", "/api/ocr/deepseek", { imageBase64: base64 }).then(r => r.json());
-        let updated = false;
-        if (res?.amount && typeof res.amount === "number" && res.amount > 0) {
-          form.setValue("amount", Number(res.amount).toFixed(2), { shouldValidate: true });
-          updated = true;
-        }
-        if (res?.dateISO) {
-          const d = new Date(res.dateISO);
-          if (!isNaN(d.getTime())) {
-            form.setValue("date", d, { shouldValidate: true });
-            updated = true;
-          }
-        }
-        if (updated) {
-          toast({ title: "识别成功", description: "已自动填充金额与日期" });
-          setIsOcrLoading(false);
-          if (fileInputRef.current) fileInputRef.current.value = "";
-          return;
-        }
-        // fall through to local OCR if not updated
-      } catch (errDeep: any) {
-        console.warn("DeepSeek OCR failed, falling back to local Tesseract:", errDeep);
-        // fallback to local tesseract
-      }
       const worker = await Tesseract.createWorker({
         workerPath: workerUrl,
         corePath: coreUrl,
