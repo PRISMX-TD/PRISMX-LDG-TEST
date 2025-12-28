@@ -171,6 +171,10 @@ export function TransactionModal({
   const needsCurrencyConversion = selectedWallet && watchCurrency !== selectedWallet.currency;
   const needsTransferConversion = activeTab === "transfer" && selectedWallet && selectedToWallet && selectedWallet.currency !== selectedToWallet.currency;
 
+  const filteredCategories = categories.filter(
+    (c) => c.type === (activeTab === "income" ? "income" : "expense")
+  );
+
   const [categoryLocked, setCategoryLocked] = useState(false);
   const learnedMapRef = useRef<Record<string, { type: TransactionType; name: string }>>(
     (() => {
@@ -542,10 +546,6 @@ export function TransactionModal({
     
     mutation.mutate(data);
   };
-
-  const filteredCategories = categories.filter(
-    (c) => c.type === (activeTab === "income" ? "income" : "expense")
-  );
 
   const typeLabels = {
     expense: "支出",
