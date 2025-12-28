@@ -726,6 +726,13 @@ export async function registerRoutes(
       if (!imageBase64 || typeof imageBase64 !== 'string') {
         return res.status(400).json({ message: "缺少图片数据" });
       }
+
+      // Temporary disable DeepSeek OCR due to lack of image support in chat completions
+      // This allows frontend to fallback immediately without 500 error
+      if (true) {
+        return res.status(501).json({ message: "DeepSeek API 当前不支持图片输入" });
+      }
+
       const dataUrl = imageBase64.startsWith("data:") ? imageBase64 : `data:image/png;base64,${imageBase64}`;
       const prompt = "从票据图片中提取总金额与交易日期，只返回 JSON：{\"amount\":number,\"currencyCode\":string|null,\"dateISO\":string|null,\"text\":string}。金额请优先使用“合计/Total/Grand Total/应付/实付”对应的值，日期请优先使用票据上的交易日期而非打印时间。";
       let model = "deepseek-chat";
