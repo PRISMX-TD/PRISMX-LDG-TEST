@@ -155,9 +155,14 @@ export default function Settings() {
             <h3 className="text-base font-medium">账户安全</h3>
           </div>
           <p className="text-sm text-muted-foreground mb-4">管理您的账户安全设置</p>
-          <Button variant="outline" asChild className="bg-background/30 border-white/10 hover:bg-white/5 hover:text-rose-500 hover:border-rose-500/20">
-            <a href="/api/logout">退出登录</a>
-          </Button>
+          <div className="space-y-3">
+            <Button variant="outline" asChild className="w-full bg-background/30 border-white/10 hover:bg-white/5 hover:text-blue-500 hover:border-blue-500/20">
+              <a href="/change-password">修改密码</a>
+            </Button>
+            <Button variant="outline" asChild className="bg-background/30 border-white/10 hover:bg-white/5 hover:text-rose-500 hover:border-rose-500/20">
+              <a href="/api/logout">退出登录</a>
+            </Button>
+          </div>
         </div>
 
         <MobileNavSettingsModal
