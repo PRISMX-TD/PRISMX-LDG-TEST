@@ -18,6 +18,31 @@ export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const handleLogout = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    
+    try {
+      // 清除本地存储的用户信息
+      localStorage.removeItem('PRISMX_USER_ID');
+      localStorage.removeItem('x-user-id');
+      
+      // 调用后端退出登录API
+      await apiRequest("POST", "/api/logout");
+      
+      // 清除React Query缓存
+      queryClient.clear();
+      
+      // 跳转到登录页面
+      window.location.href = "/auth";
+    } catch (error) {
+      toast({
+        title: "退出登录失败",
+        description: "请重试",
+        variant: "destructive",
+      });
+    }
+  };
   const [isMobileNavSettingsOpen, setIsMobileNavSettingsOpen] = useState(false);
 
   const displayName = user?.firstName && user?.lastName
@@ -159,8 +184,12 @@ export default function Settings() {
             <Button variant="outline" asChild className="w-full bg-background/30 border-white/10 hover:bg-white/5 hover:text-blue-500 hover:border-blue-500/20">
               <a href="/change-password">修改密码</a>
             </Button>
-            <Button variant="outline" asChild className="bg-background/30 border-white/10 hover:bg-white/5 hover:text-rose-500 hover:border-rose-500/20">
-              <a href="/api/logout">退出登录</a>
+            <Button 
+              variant="outline" 
+              className="w-full bg-background/30 border-white/10 hover:bg-white/5 hover:text-rose-500 hover:border-rose-500/20"
+              onClick={handleLogout}
+            >
+              退出登录
             </Button>
           </div>
         </div>
