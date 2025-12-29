@@ -7,8 +7,15 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+function hasNoDemoCookie(): boolean {
+  if (typeof document === 'undefined') return false;
+  const cookie = document.cookie || '';
+  return cookie.split(';').map(c => c.trim()).some(p => p.startsWith('NO_DEMO='));
+}
+
 function getFallbackHeaders(): Record<string, string> {
   try {
+    if (hasNoDemoCookie()) return {};
     const uid = localStorage.getItem('PRISMX_USER_ID') || localStorage.getItem('x-user-id');
     return uid ? { 'x-user-id': uid } : {} as Record<string, string>;
   } catch {
@@ -94,12 +101,13 @@ export const getQueryFn: <T>(options: {
     }
 
     if (!res.ok && res.status === 401) {
-      try {
-        // try open-access fallback with demo id
-        localStorage.setItem('PRISMX_USER_ID', 'demo-user');
-        localStorage.setItem('x-user-id', 'demo-user');
-      } catch {}
-      res = await fetch(url, { credentials: "include", headers: getFallbackHeaders() });
+      if (!hasNoDemoCookie()) {
+        try {
+          localStorage.setItem('PRISMX_USER_ID', 'demo-user');
+          localStorage.setItem('x-user-id', 'demo-user');
+        } catch {}
+        res = await fetch(url, { credentials: "include", headers: getFallbackHeaders() });
+      }
     }
     await throwIfResNotOk(res);
     return await res.json();
