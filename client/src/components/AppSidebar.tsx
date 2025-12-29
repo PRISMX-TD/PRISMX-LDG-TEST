@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useLogout } from "@/hooks/useLogout";
 import {
   Sidebar,
   SidebarContent,
@@ -41,6 +42,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ user }: AppSidebarProps) {
   const [location] = useLocation();
+  const { logout } = useLogout();
 
   const displayName =
     user.firstName && user.lastName
@@ -207,10 +209,14 @@ export function AppSidebar({ user }: AppSidebarProps) {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="退出登录">
-              <a href="/api/logout" className="w-full h-full flex items-center" data-testid="nav-logout">
+              <button 
+                onClick={logout}
+                className="w-full h-full flex items-center text-left" 
+                data-testid="nav-logout"
+              >
                 <LogOut className="w-4 h-4" />
                 <span>退出登录</span>
-              </a>
+              </button>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

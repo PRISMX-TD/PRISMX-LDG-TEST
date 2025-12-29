@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLogout } from "@/hooks/useLogout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -32,6 +33,7 @@ interface HeaderProps {
 export function Header({ user }: HeaderProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { logout } = useLogout();
   const [currencyDialogOpen, setCurrencyDialogOpen] = useState(false);
   
   const displayName =
@@ -136,11 +138,12 @@ export function Header({ user }: HeaderProps) {
                   <span className="ml-auto text-xs text-muted-foreground">{currentCurrency}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="cursor-pointer">
-                  <a href="/api/logout" className="flex items-center" data-testid="button-logout">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>退出登录</span>
-                  </a>
+                <DropdownMenuItem 
+                  className="cursor-pointer"
+                  onSelect={logout}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>退出登录</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

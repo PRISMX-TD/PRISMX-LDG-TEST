@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { useLogout } from "@/hooks/useLogout";
 import {
   LayoutDashboard,
   Receipt,
@@ -59,6 +60,7 @@ const defaultMainNavKeys = ["dashboard", "transactions", "wallets", "analytics"]
 
 export function MobileNavBar({ user }: MobileNavBarProps) {
   const [location] = useLocation();
+  const { logout } = useLogout();
 
   const { data: reminders = [] } = useQuery<BillReminder[]>({
     queryKey: ["/api/bill-reminders"],
@@ -191,14 +193,14 @@ export function MobileNavBar({ user }: MobileNavBarProps) {
             </div>
 
             <div className="border-t pt-4 pb-2">
-              <a
-                href="/api/logout"
-                className="flex items-center gap-3 p-3 rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+              <button
+                onClick={logout}
+                className="flex items-center gap-3 p-3 rounded-xl text-muted-foreground hover:bg-muted transition-colors w-full text-left"
                 data-testid="mobile-logout"
               >
                 <LogOut className="w-5 h-5" />
                 <span className="text-sm">退出登录</span>
-              </a>
+              </button>
             </div>
           </SheetContent>
         </Sheet>

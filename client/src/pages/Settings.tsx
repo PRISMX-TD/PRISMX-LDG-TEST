@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useLogout } from "@/hooks/useLogout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -18,30 +19,11 @@ export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { logout } = useLogout();
 
-  const handleLogout = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleLogout = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    
-    try {
-      // 清除本地存储的用户信息
-      localStorage.removeItem('PRISMX_USER_ID');
-      localStorage.removeItem('x-user-id');
-      
-      // 调用后端退出登录API
-      await apiRequest("POST", "/api/logout");
-      
-      // 清除React Query缓存
-      queryClient.clear();
-      
-      // 跳转到登录页面
-      window.location.href = "/auth";
-    } catch (error) {
-      toast({
-        title: "退出登录失败",
-        description: "请重试",
-        variant: "destructive",
-      });
-    }
+    await logout();
   };
   const [isMobileNavSettingsOpen, setIsMobileNavSettingsOpen] = useState(false);
 

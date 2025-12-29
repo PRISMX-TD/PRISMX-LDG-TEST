@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useLogout } from "@/hooks/useLogout";
 import {
   LayoutDashboard,
   Receipt,
@@ -29,6 +30,7 @@ interface SimpleSidebarProps {
 
 export function SimpleSidebar({ user }: SimpleSidebarProps) {
   const [location] = useLocation();
+  const { logout } = useLogout();
 
   const displayName =
     user.firstName && user.lastName
@@ -168,12 +170,15 @@ export function SimpleSidebar({ user }: SimpleSidebarProps) {
               <span>设置</span>
             </div>
           </Link>
-          <a href="/api/logout" className="block w-full">
+          <button 
+            onClick={logout}
+            className="block w-full text-left"
+          >
             <div className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-colors cursor-pointer">
               <LogOut className="w-4 h-4" />
               <span>退出登录</span>
             </div>
-          </a>
+          </button>
         </div>
       </div>
     </div>
