@@ -275,11 +275,11 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     (req as any).user = { claims: { sub: sid } };
     return next();
   }
+  const noDemoGlobal = getCookie(req, NO_DEMO_COOKIE);
+  if (noDemoGlobal) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
   if (isAuthDisabled) {
-    const noDemo = getCookie(req, NO_DEMO_COOKIE);
-    if (noDemo) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
     return next();
   }
   const headerUid = (req.headers["x-user-id"] || "") as string;
