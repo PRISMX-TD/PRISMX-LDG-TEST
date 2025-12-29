@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getIsLoggingOut } from "@/hooks/useAuth";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -101,7 +102,7 @@ export const getQueryFn: <T>(options: {
     }
 
     if (!res.ok && res.status === 401) {
-      if (!hasNoDemoCookie()) {
+      if (!hasNoDemoCookie() && !getIsLoggingOut()) {
         try {
           localStorage.setItem('PRISMX_USER_ID', 'demo-user');
           localStorage.setItem('x-user-id', 'demo-user');

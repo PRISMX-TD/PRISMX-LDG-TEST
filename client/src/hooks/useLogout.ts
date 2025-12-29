@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { setIsLoggingOut } from "@/hooks/useAuth";
 
 export function useLogout() {
   const queryClient = useQueryClient();
@@ -8,6 +9,12 @@ export function useLogout() {
 
   const logout = async () => {
     try {
+      // 设置退出登录状态，防止认证回退
+      setIsLoggingOut(true);
+      
+      // 设置NO_DEMO cookie来阻止自动回退到demo-user
+      document.cookie = 'NO_DEMO=1; Path=/; SameSite=Lax';
+      
       // 清除本地存储的用户信息
       localStorage.removeItem('PRISMX_USER_ID');
       localStorage.removeItem('x-user-id');
