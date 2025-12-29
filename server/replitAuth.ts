@@ -14,6 +14,15 @@ import crypto from "crypto";
 
 const isAuthDisabled = process.env.DISABLE_AUTH === "true";
 const isLocalAuth = process.env.LOCAL_AUTH === "true";
+const NO_DEMO_COOKIE = "NO_DEMO";
+function getCookie(req: any, name: string): string | undefined {
+  const cookie = req.headers?.cookie || "";
+  const parts = cookie.split(";").map((c: string) => c.trim());
+  for (const p of parts) {
+    if (p.startsWith(name + "=")) return decodeURIComponent(p.substring(name.length + 1));
+  }
+  return undefined;
+}
 
 function hashPassword(password: string) {
   const salt = crypto.randomBytes(16);
@@ -153,15 +162,34 @@ export async function setupAuth(app: Express) {
   }
 
   if (isAuthDisabled) {
-    app.use((req, _res, next) => {
-      (req as any).user = { claims: { sub: req.header("x-user-id") || "demo-user" } };
-      (req as any).isAuthenticated = () => true;
+    app.use((req, res, next) => {
+      const noDemo = getCookie(req, NO_DEMO_COOKIE);
+      if (!noDemo) {
+        (req as any).user = { claims: { sub: req.header("x-user-id") || "demo-user" } };
+        (req as any).isAuthenticated = () => true;
+      } else {
+        (req as any).isAuthenticated = () => false;
+      }
       next();
     });
 
-    app.get("/api/login", (_req, res) => res.redirect("/"));
+    app.get("/api/login", (req, res) => {
+      const isProd = process.env.NODE_ENV === "production";
+      res.setHeader(
+        "Set-Cookie",
+        `${NO_DEMO_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0${isProd ? "; Secure" : ""}`
+      );
+      res.redirect("/");
+    });
     app.get("/api/callback", (_req, res) => res.redirect("/"));
-    app.get("/api/logout", (_req, res) => res.redirect("/"));
+    app.get("/api/logout", (req, res) => {
+      const isProd = process.env.NODE_ENV === "production";
+      res.setHeader(
+        "Set-Cookie",
+        `${NO_DEMO_COOKIE}=1; Path=/; SameSite=Lax${isProd ? "; Secure" : ""}`
+      );
+      res.redirect("/auth");
+    });
     return;
   }
 
@@ -248,6 +276,10 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return next();
   }
   if (isAuthDisabled) {
+    const noDemo = getCookie(req, NO_DEMO_COOKIE);
+    if (noDemo) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     return next();
   }
   const headerUid = (req.headers["x-user-id"] || "") as string;
