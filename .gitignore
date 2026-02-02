@@ -1,0 +1,12 @@
+node_modules
+dist
+.tools/
+.trae/
+.DS_Store
+server/public
+.env
+.env.local
+.local/
+error.txt
+vite.config.ts.*
+*.tar.gz
