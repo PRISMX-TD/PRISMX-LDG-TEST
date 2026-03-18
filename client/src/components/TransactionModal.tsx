@@ -1097,13 +1097,17 @@ export function TransactionModal({
                       </FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-12 bg-transparent border-0 border-b border-border/50 rounded-none px-0 focus:ring-0 shadow-none">
+                          <SelectTrigger className="h-12 bg-transparent border-0 border-b border-border/50 rounded-none px-0 focus:ring-0 shadow-none focus:border-primary transition-colors">
                             <SelectValue placeholder="选择钱包" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="bg-popover border-border/50">
                           {sortedWallets.map((wallet) => (
-                            <SelectItem key={wallet.id} value={String(wallet.id)}>
+                            <SelectItem 
+                              key={wallet.id} 
+                              value={String(wallet.id)}
+                              className="focus:bg-white/10 focus:text-white cursor-pointer"
+                            >
                               {wallet.name} ({wallet.currency})
                             </SelectItem>
                           ))}
@@ -1124,15 +1128,19 @@ export function TransactionModal({
                           <FormLabel className="text-xs text-muted-foreground uppercase tracking-wider">转入账户</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger className="h-12 bg-transparent border-0 border-b border-border/50 rounded-none px-0 focus:ring-0 shadow-none">
+                              <SelectTrigger className="h-12 bg-transparent border-0 border-b border-border/50 rounded-none px-0 focus:ring-0 shadow-none focus:border-primary transition-colors">
                                 <SelectValue placeholder="选择转入钱包" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent className="bg-popover border-border/50">
                               {sortedWallets
                                 .filter((w) => String(w.id) !== form.watch("walletId"))
                                 .map((wallet) => (
-                                  <SelectItem key={wallet.id} value={String(wallet.id)}>
+                                  <SelectItem 
+                                    key={wallet.id} 
+                                    value={String(wallet.id)}
+                                    className="focus:bg-white/10 focus:text-white cursor-pointer"
+                                  >
                                     {wallet.name} ({wallet.currency})
                                   </SelectItem>
                                 ))}
