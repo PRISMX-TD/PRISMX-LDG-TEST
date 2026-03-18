@@ -27,7 +27,10 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
     staleTime: 3600000, // 1 hour
   });
 
-  const rate = exchangeRate?.rate || 4.45;
+  const { data: user } = useQuery({ queryKey: ["/api/user"] });
+  const displayUserName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user?.username || userName;
 
   return (
     <div className="flex-1 flex flex-col gap-4 w-full lg:min-w-[300px] xl:min-w-[350px]">
@@ -45,15 +48,15 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
             <select
               value={selectedWallet?.id ?? ""}
               onChange={(e) => setSelectedWalletId(Number(e.target.value))}
-              className="w-full bg-transparent border-none p-0 text-sm font-medium text-white/90 outline-none appearance-none cursor-pointer hover:text-white transition-colors"
+              className="w-full bg-transparent border-none p-0 text-sm font-medium text-white/90 outline-none appearance-none cursor-pointer hover:text-white transition-colors [&>option]:bg-[#1a1625] [&>option]:text-white"
               style={{ 
                 WebkitAppearance: "none", 
                 MozAppearance: "none" 
               }}
             >
-              {wallets.length === 0 && <option value="" className="bg-[#1a1625] text-white">默认钱包</option>}
+              {wallets.length === 0 && <option value="">默认钱包</option>}
               {wallets.map((wallet) => (
-                <option key={wallet.id} value={wallet.id} className="bg-[#1a1625] text-white">
+                <option key={wallet.id} value={wallet.id}>
                   {wallet.name} ({wallet.currency})
                 </option>
               ))}
@@ -71,7 +74,7 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
           <div className="flex justify-between items-end">
             <div>
               <div className="text-[10px] text-muted-foreground uppercase">Card Holder</div>
-              <div className="text-sm text-foreground uppercase">{userName}</div>
+              <div className="text-sm text-foreground uppercase">{displayUserName}</div>
             </div>
             <div className="text-right">
               <div className="text-[10px] text-muted-foreground uppercase">Expires</div>
