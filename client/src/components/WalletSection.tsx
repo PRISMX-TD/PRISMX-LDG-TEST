@@ -68,7 +68,7 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
               </SelectTrigger>
               <SelectContent className="bg-[#1a1625] border-primary/20 text-white min-w-[200px]">
                 {wallets.length === 0 && (
-                  <SelectItem value="" className="focus:bg-white/10 focus:text-white cursor-pointer">
+                  <SelectItem value="default" className="focus:bg-white/10 focus:text-white cursor-pointer">
                     默认钱包
                   </SelectItem>
                 )}
