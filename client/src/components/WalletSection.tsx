@@ -26,6 +26,8 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
     queryKey: [`/api/exchange-rate?from=USD&to=${currency}`],
     staleTime: 3600000, // 1 hour
   });
+  
+  const rate = exchangeRate?.rate || 4.45;
 
   const { data: user } = useQuery({ queryKey: ["/api/user"] });
   const displayUserName = user?.firstName && user?.lastName 
