@@ -22,11 +22,29 @@ interface WalletSectionProps {
 
 export function WalletSection({ userName = "USER", defaultWalletBalance = 0, currency = "MYR", wallets = [], defaultWalletId = null }: WalletSectionProps) {
   const { isPrivacyMode } = usePrivacyMode();
-  const [selectedWalletId, setSelectedWalletId] = useState<number | null>(defaultWalletId ?? wallets[0]?.id ?? null);
+  
+  // Initialize from localStorage or default
+  const [selectedWalletId, setSelectedWalletId] = useState<number | null>(() => {
+    const saved = localStorage.getItem("dashboard_selected_wallet");
+    if (saved) return Number(saved);
+    return defaultWalletId ?? wallets[0]?.id ?? null;
+  });
+
   const selectedWallet = useMemo(
     () => wallets.find((wallet) => wallet.id === selectedWalletId) ?? wallets[0],
     [wallets, selectedWalletId]
   );
+  
+  const handleWalletChange = (val: string) => {
+    const newId = val === "default" ? null : Number(val);
+    setSelectedWalletId(newId);
+    if (newId) {
+      localStorage.setItem("dashboard_selected_wallet", String(newId));
+    } else {
+      localStorage.removeItem("dashboard_selected_wallet");
+    }
+  };
+
   const selectedBalance = selectedWallet ? parseFloat(selectedWallet.balance || "0") : defaultWalletBalance;
   
   // Fetch exchange rate (USD to CNY for demo, or based on user prefs)
@@ -56,8 +74,8 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
         <div className="relative z-10">
           <div className="mb-3">
             <Select
-              value={String(selectedWallet?.id ?? "")}
-              onValueChange={(val) => setSelectedWalletId(val ? Number(val) : null)}
+              value={selectedWalletId ? String(selectedWalletId) : "default"}
+              onValueChange={handleWalletChange}
             >
               <SelectTrigger 
                 className="w-full bg-transparent border-none p-0 h-auto text-sm font-medium text-white/90 focus:ring-0 focus:ring-offset-0 shadow-none hover:text-white transition-colors [&>svg]:hidden"
