@@ -1,6 +1,7 @@
 import { PageContainer } from "@/components/PageContainer";
 import { WalletCard, WalletCardSkeleton } from "@/components/WalletCard";
 import { WalletModal } from "@/components/WalletModal";
+import { TransactionModal } from "@/components/TransactionModal";
 import { TotalAssetsCard } from "@/components/TotalAssetsCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { walletTypeLabels, getCurrencyInfo } from "@shared/schema";
-import type { Wallet as WalletType, UserWalletPreferences } from "@shared/schema";
+import type { Wallet as WalletType, UserWalletPreferences, Category, SubLedger } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -55,6 +56,7 @@ export default function Wallets() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState<WalletType | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragOverWalletId, setDragOverWalletId] = useState<number | null>(null);
@@ -64,6 +66,14 @@ export default function Wallets() {
 
   const { data: wallets = [], isLoading } = useQuery<WalletType[]>({
     queryKey: ["/api/wallets"],
+  });
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+  });
+
+  const { data: subLedgers = [] } = useQuery<SubLedger[]>({
+    queryKey: ["/api/sub-ledgers"],
   });
 
   const { data: walletPreferences } = useQuery<UserWalletPreferences>({
@@ -437,16 +447,22 @@ export default function Wallets() {
         </div>
       </div>
 
-      <FloatingActionButton onClick={() => {
-        setSelectedWallet(null);
-        setIsModalOpen(true);
-      }} />
+      <FloatingActionButton onClick={() => setIsTransactionModalOpen(true)} />
 
       <WalletModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         wallet={selectedWallet}
         defaultCurrency={user?.defaultCurrency || "MYR"}
+      />
+      
+      <TransactionModal
+        open={isTransactionModalOpen}
+        onOpenChange={setIsTransactionModalOpen}
+        wallets={wallets}
+        categories={categories}
+        subLedgers={subLedgers}
+        defaultCurrency={defaultCurrency}
       />
     </PageContainer>
   );
