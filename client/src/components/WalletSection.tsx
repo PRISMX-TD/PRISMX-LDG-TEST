@@ -45,11 +45,15 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
             <select
               value={selectedWallet?.id ?? ""}
               onChange={(e) => setSelectedWalletId(Number(e.target.value))}
-              className="w-full bg-black/30 border border-primary/25 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+              className="w-full bg-transparent border-none p-0 text-sm font-medium text-white/90 outline-none appearance-none cursor-pointer hover:text-white transition-colors"
+              style={{ 
+                WebkitAppearance: "none", 
+                MozAppearance: "none" 
+              }}
             >
-              {wallets.length === 0 && <option value="">默认钱包</option>}
+              {wallets.length === 0 && <option value="" className="bg-[#1a1625] text-white">默认钱包</option>}
               {wallets.map((wallet) => (
-                <option key={wallet.id} value={wallet.id}>
+                <option key={wallet.id} value={wallet.id} className="bg-[#1a1625] text-white">
                   {wallet.name} ({wallet.currency})
                 </option>
               ))}
