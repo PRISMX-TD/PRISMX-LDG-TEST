@@ -1,8 +1,16 @@
 import { Wifi, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { usePrivacyMode } from "@/hooks/usePrivacyMode";
+import { useAuth } from "@/hooks/useAuth";
 import { useMemo, useState } from "react";
 import type { Wallet } from "@shared/schema";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface WalletSectionProps {
   userName?: string;
@@ -29,7 +37,7 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
   
   const rate = exchangeRate?.rate || 4.45;
 
-  const { data: user } = useQuery({ queryKey: ["/api/user"] });
+  const { user } = useAuth();
   const displayUserName = user?.firstName && user?.lastName 
     ? `${user.firstName} ${user.lastName}` 
     : user?.username || userName;
@@ -47,22 +55,34 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
         
         <div className="relative z-10">
           <div className="mb-3">
-            <select
-              value={selectedWallet?.id ?? ""}
-              onChange={(e) => setSelectedWalletId(Number(e.target.value))}
-              className="w-full bg-transparent border-none p-0 text-sm font-medium text-white/90 outline-none appearance-none cursor-pointer hover:text-white transition-colors [&>option]:bg-[#1a1625] [&>option]:text-white"
-              style={{ 
-                WebkitAppearance: "none", 
-                MozAppearance: "none" 
-              }}
+            <Select
+              value={String(selectedWallet?.id ?? "")}
+              onValueChange={(val) => setSelectedWalletId(val ? Number(val) : null)}
             >
-              {wallets.length === 0 && <option value="">默认钱包</option>}
-              {wallets.map((wallet) => (
-                <option key={wallet.id} value={wallet.id}>
-                  {wallet.name} ({wallet.currency})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger 
+                className="w-full bg-transparent border-none p-0 h-auto text-sm font-medium text-white/90 focus:ring-0 focus:ring-offset-0 shadow-none hover:text-white transition-colors [&>svg]:hidden"
+              >
+                <SelectValue placeholder="默认钱包">
+                  {selectedWallet ? `${selectedWallet.name} (${selectedWallet.currency})` : "默认钱包"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="bg-[#1a1625] border-primary/20 text-white min-w-[200px]">
+                {wallets.length === 0 && (
+                  <SelectItem value="" className="focus:bg-white/10 focus:text-white cursor-pointer">
+                    默认钱包
+                  </SelectItem>
+                )}
+                {wallets.map((wallet) => (
+                  <SelectItem 
+                    key={wallet.id} 
+                    value={String(wallet.id)}
+                    className="focus:bg-white/10 focus:text-white cursor-pointer"
+                  >
+                    {wallet.name} ({wallet.currency})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="text-2xl font-mono text-white tracking-widest mb-4 drop-shadow-md">
             {isPrivacyMode ? (
