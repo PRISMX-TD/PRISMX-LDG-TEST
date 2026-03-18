@@ -1097,7 +1097,7 @@ export function TransactionModal({
                       </FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-12 bg-white/5 border-border/50">
+                          <SelectTrigger className="h-12 bg-transparent border-0 border-b border-border/50 rounded-none px-0 focus:ring-0 shadow-none">
                             <SelectValue placeholder="选择钱包" />
                           </SelectTrigger>
                         </FormControl>
@@ -1124,7 +1124,7 @@ export function TransactionModal({
                           <FormLabel className="text-xs text-muted-foreground uppercase tracking-wider">转入账户</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger className="h-12 bg-white/5 border-border/50">
+                              <SelectTrigger className="h-12 bg-transparent border-0 border-b border-border/50 rounded-none px-0 focus:ring-0 shadow-none">
                                 <SelectValue placeholder="选择转入钱包" />
                               </SelectTrigger>
                             </FormControl>
