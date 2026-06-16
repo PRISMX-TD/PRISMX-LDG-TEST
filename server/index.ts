@@ -5,6 +5,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { isDbUnavailableError } from "./errors";
 import { pool } from "./db";
+import { startRecurringScheduler, stopRecurringScheduler } from "./recurring-scheduler";
 
 const app = express();
 const httpServer = createServer(app);
@@ -102,14 +103,32 @@ function checkRate(key: string, max: number) {
   const windowMs = 60000;
   const list = rateMap.get(key) || [];
   const filtered = list.filter((t) => now - t < windowMs);
+  if (filtered.length === 0) {
+    // Reaching here on every request prunes idle keys so the map can't grow unbounded.
+    rateMap.delete(key);
+  }
   filtered.push(now);
   rateMap.set(key, filtered);
   return filtered.length <= max;
 }
 
+// Periodic sweeper for keys whose entire window has expired between requests
+// (the per-request prune above only runs for keys that get hit again).
+setInterval(() => {
+  const now = Date.now();
+  const windowMs = 60000;
+  for (const [key, list] of rateMap.entries()) {
+    const fresh = list.filter((t) => now - t < windowMs);
+    if (fresh.length === 0) rateMap.delete(key);
+    else if (fresh.length !== list.length) rateMap.set(key, fresh);
+  }
+}, 5 * 60_000).unref();
+
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-    const key = `${req.headers["x-user-id"] || "anon"}:${req.ip}`;
+    // SECURITY: do not trust client-supplied x-user-id as a rate-limit key — that lets
+    // anyone trivially partition their own bucket. Use the IP only.
+    const key = `req:${req.ip}`;
     if (!checkRate(key, 120)) {
       return res.status(429).json({ message: "Too many requests" });
     }
@@ -197,34 +216,4 @@ app.use((req, res, next) => {
     serveStatic(app);
   } else {
     const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
-  }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5005 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5005", 10);
-  httpServer.listen(
-    {
-      port,
-      host: process.env.HOST || "0.0.0.0",
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
-
-  async function shutdown() {
-    try {
-      await (pool as any)?.end?.();
-    } catch (e) {
-      console.error("Error closing database pool:", e);
-    }
-    httpServer.close(() => process.exit(0));
-    setTimeout(() => process.exit(1), 5000).unref();
-  }
-
-  process.once("SIGTERM", () => void shutdown());
-  process.once("SIGINT", () => void shutdown());
-})();
+    await setupVite(ht

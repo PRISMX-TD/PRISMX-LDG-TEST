@@ -50,23 +50,41 @@ const getOidcConfig = memoize(
 );
 
 export function getSession() {
-  const secret = process.env.SESSION_SECRET || "default_local_secret";
-  
+  // SECURITY: SESSION_SECRET must be explicitly set in production.
+  // Falling back to a hardcoded default would let attackers forge sessions.
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SESSION_SECRET is required in production");
+    }
+    console.warn("[security] SESSION_SECRET not set — using ephemeral random secret (dev only). Sessions won't survive restarts.");
+  }
+  const effectiveSecret = secret || crypto.randomBytes(32).toString("hex");
+
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   let sessionStore: session.Store;
-  const storeType = (process.env.SESSION_STORE || (isLocalAuth ? "memory" : "memory")).toLowerCase();
-  if (storeType === "pg" && process.env.DATABASE_URL) {
-    // Force use memory store to avoid connection issues on Railway
-    console.warn("Using MemoryStore for sessions to avoid PG connection issues");
-    sessionStore = new session.MemoryStore();
+  const storeType = (process.env.SESSION_STORE || (process.env.DATABASE_URL && !isMock ? "pg" : "memory")).toLowerCase();
+  if (storeType === "pg" && process.env.DATABASE_URL && !isMock) {
+    const PgStore = connectPg(session);
+    try {
+      sessionStore = new PgStore({
+        pool: pool as any,
+        tableName: "sessions",
+        createTableIfMissing: false, // sessions table is created via drizzle migration
+        pruneSessionInterval: 60 * 15, // 15 min
+      });
+    } catch (e) {
+      console.warn("[session] PG store init failed, falling back to MemoryStore:", e);
+      sessionStore = new session.MemoryStore();
+    }
   } else {
     sessionStore = new session.MemoryStore();
   }
-  
+
   const isProduction = process.env.NODE_ENV === "production";
   
   return session({
-    secret: secret,
+    secret: effectiveSecret,
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
@@ -113,6 +131,17 @@ export async function setupAuth(app: Express) {
         const { email, password, firstName, lastName } = req.body || {};
         if (!email || !password || typeof email !== "string" || typeof password !== "string") {
           return res.status(400).json({ message: "Email and password required" });
+        }
+        // SECURITY: enforce a minimum strength server-side; the client also validates.
+        const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRe.test(email)) {
+          return res.status(400).json({ message: "邮箱格式不正确" });
+        }
+        if (password.length < 8) {
+          return res.status(400).json({ message: "密码至少 8 位" });
+        }
+        if (password.length > 200) {
+          return res.status(400).json({ message: "密码过长" });
         }
         if (isMock) {
           const id = crypto.randomUUID();
@@ -275,59 +304,11 @@ export async function setupAuth(app: Express) {
   });
 }
 
+// SECURITY: x-user-id header impersonation is only honored when DISABLE_AUTH=true
+// (intended for scripted local testing). It must never be honored in production.
+const allowHeaderImpersonation = process.env.DISABLE_AUTH === "true";
+
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   if (isLocalAuth) {
-    const headerUid = (req.headers["x-user-id"] || "") as string;
-    if (headerUid) {
-      (req as any).user = { claims: { sub: headerUid } };
-      return next();
-    }
-    const sid = (req as any).session?.userId;
-    if (!sid) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    (req as any).user = { claims: { sub: sid } };
-    return next();
-  }
-  const noDemoGlobal = getCookie(req, NO_DEMO_COOKIE);
-  if (noDemoGlobal) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  if (isAuthDisabled) {
-    return next();
-  }
-  const headerUid = (req.headers["x-user-id"] || "") as string;
-  if (headerUid) {
-    (req as any).user = { claims: { sub: headerUid } };
-    return next();
-  }
-  const user = req.user as any;
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  // Fallback support: when open-access fallback sets req.user without expires_at
-  if (!user?.expires_at && user?.claims?.sub) {
-    return next();
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  if (now <= user.expires_at) {
-    return next();
-  }
-
-  const refreshToken = user.refresh_token;
-  if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-
-  try {
-    const config = await getOidcConfig();
-    const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-    updateUserSession(user, tokenResponse);
-    return next();
-  } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-};
+    if (allowHeaderImpersonation) {
+      c
