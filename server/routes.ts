@@ -26,6 +26,10 @@ export async function registerRoutes(
   const exchangeRateCache = new Map<string, { rate: number; timestamp: number }>();
   const CACHE_DURATION = 3600 * 1000; // 1 hour
 
+  // Cache decrypted api-key previews to avoid running AES on every list request.
+  // Keyed by credential row id; invalidated when credentials are created/updated/deleted.
+  const apiKeyPreviewCache = new Map<number, string>();
+
   const txCreateSchema = z.object({
     type: z.enum(["expense","income","transfer"]),
     amount: z.number().positive(),
@@ -379,8 +383,7 @@ export async function registerRoutes(
             if (isNaN(r) || r <= 0) return res.status(400).json({ message: "Valid exchange rate required for cross-currency transfer" });
             addAmount = parseFloat((balance * r).toFixed(2));
           }
-          const targetNew = parseFloat(target.balance || '0') + addAmount;
-          await storage.updateWalletBalance(target.id, userId, targetNew.toFixed(2));
+          await storage.incrementWalletBalance(target.id, userId, addAmount);
         } else if (action === 'destroy') {
           // no-op: simply zero out, optionally could create an adjustment transaction
         } else {
@@ -605,20 +608,30 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      
+
       const existingCategory = await storage.getCategory(id, userId);
       if (!existingCategory) {
         return res.status(404).json({ message: "Category not found" });
       }
-      
+
       // Don't allow deleting default categories
       if (existingCategory.isDefault) {
         return res.status(400).json({ message: "Cannot delete default category" });
       }
-      
+
+      // Count affected dependencies *before* deletion so the client can show a meaningful confirmation toast.
+      // Transactions have ON DELETE SET NULL on categoryId, so they remain but lose their category tag.
+      // Budgets have ON DELETE CASCADE, so they will be removed.
+      const affectedTransactions = await storage.getTransactions(userId, { categoryId: id });
+      const affectedBudgets = (await storage.getBudgets(userId)).filter(b => b.categoryId === id);
+
       const deleted = await storage.deleteCategory(id, userId);
       if (deleted) {
-        res.status(204).send();
+        res.status(200).json({
+          deleted: true,
+          affectedTransactions: affectedTransactions.length,
+          deletedBudgets: affectedBudgets.length,
+        });
       } else {
         res.status(500).json({ message: "Failed to delete category" });
       }
@@ -820,13 +833,9 @@ export async function registerRoutes(
         const toWalletCurrency = toWallet.currency || "MYR";
         const isToWalletCrossCurrency = walletCurrency !== toWalletCurrency;
 
-        // Update source wallet (decrease by wallet amount)
-        const sourceBalance = parseFloat(wallet.balance || "0") - walletAmount;
-        await storage.updateWalletBalance(wallet.id, userId, sourceBalance.toString());
-
-        // Calculate destination amount
+        // Calculate destination amount first so we can validate before any balance changes
         let destAmount = walletAmount;
-        
+
         if (isToWalletCrossCurrency) {
           // Cross-currency transfer requires toWalletAmount
           if (toWalletAmount === null || toWalletAmount <= 0) {
@@ -843,19 +852,14 @@ export async function registerRoutes(
           transactionData.toWalletAmount = walletAmount.toFixed(2);
         }
 
-        // Update destination wallet (increase)
-        const destBalance = parseFloat(toWallet.balance || "0") + destAmount;
-        await storage.updateWalletBalance(toWallet.id, userId, destBalance.toString());
+        // Atomic balance moves on both wallets.
+        await storage.incrementWalletBalance(wallet.id, userId, -walletAmount);
+        await storage.incrementWalletBalance(toWallet.id, userId, destAmount);
       } else if (transactionData.type === 'expense') {
-        // Decrease wallet balance for expense
-        const currentBalance = parseFloat(wallet.balance || "0");
-        const newBalance = currentBalance - walletAmount;
-        await storage.updateWalletBalance(wallet.id, userId, newBalance.toString());
+        // Atomic decrement avoids lost-update races with concurrent edits.
+        await storage.incrementWalletBalance(wallet.id, userId, -walletAmount);
       } else if (transactionData.type === 'income') {
-        // Increase wallet balance for income
-        const currentBalance = parseFloat(wallet.balance || "0");
-        const newBalance = currentBalance + walletAmount;
-        await storage.updateWalletBalance(wallet.id, userId, newBalance.toString());
+        await storage.incrementWalletBalance(wallet.id, userId, walletAmount);
       }
 
       // Create the transaction
@@ -915,26 +919,21 @@ export async function registerRoutes(
       // Get old wallet for balance reversal
       const oldWallet = await storage.getWallet(existingTransaction.walletId, userId);
       
-      // Reverse the old transaction effect on wallet balances
+      // Reverse the old transaction effect on wallet balances (atomic increments).
       if (oldWallet) {
         const oldAmount = parseFloat(existingTransaction.amount || "0");
-        const currentBalance = parseFloat(oldWallet.balance || "0");
-        
+
         if (existingTransaction.type === 'expense') {
-          // Refund the expense
-          await storage.updateWalletBalance(oldWallet.id, userId, (currentBalance + oldAmount).toString());
+          await storage.incrementWalletBalance(oldWallet.id, userId, oldAmount);
         } else if (existingTransaction.type === 'income') {
-          // Remove the income
-          await storage.updateWalletBalance(oldWallet.id, userId, (currentBalance - oldAmount).toString());
+          await storage.incrementWalletBalance(oldWallet.id, userId, -oldAmount);
         } else if (existingTransaction.type === 'transfer' && existingTransaction.toWalletId) {
-          // Reverse transfer: add back to source, remove from destination
-          await storage.updateWalletBalance(oldWallet.id, userId, (currentBalance + oldAmount).toString());
-          
+          await storage.incrementWalletBalance(oldWallet.id, userId, oldAmount);
+
           const oldToWallet = await storage.getWallet(existingTransaction.toWalletId, userId);
           if (oldToWallet) {
             const toAmount = parseFloat(existingTransaction.toWalletAmount || existingTransaction.amount || "0");
-            const toCurrentBalance = parseFloat(oldToWallet.balance || "0");
-            await storage.updateWalletBalance(oldToWallet.id, userId, (toCurrentBalance - toAmount).toString());
+            await storage.incrementWalletBalance(oldToWallet.id, userId, -toAmount);
           }
         }
       }
@@ -1002,13 +1001,9 @@ export async function registerRoutes(
         const toWalletCurrency = toWallet.currency || "MYR";
         const isToWalletCrossCurrency = walletCurrency !== toWalletCurrency;
 
-        // Update source wallet (decrease)
-        const sourceBalance = parseFloat(wallet.balance || "0") - walletAmount;
-        await storage.updateWalletBalance(wallet.id, userId, sourceBalance.toString());
-
-        // Calculate destination amount
+        // Calculate destination amount first so we can validate before any balance changes
         let destAmount = walletAmount;
-        
+
         if (isToWalletCrossCurrency) {
           if (toWalletAmount === null || toWalletAmount <= 0) {
             return res.status(400).json({ message: "Cross-currency transfer requires destination amount" });
@@ -1020,17 +1015,12 @@ export async function registerRoutes(
           transactionData.toWalletAmount = walletAmount.toFixed(2);
         }
 
-        // Update destination wallet (increase)
-        const destBalance = parseFloat(toWallet.balance || "0") + destAmount;
-        await storage.updateWalletBalance(toWallet.id, userId, destBalance.toString());
+        await storage.incrementWalletBalance(wallet.id, userId, -walletAmount);
+        await storage.incrementWalletBalance(toWallet.id, userId, destAmount);
       } else if (transactionData.type === 'expense') {
-        const currentBalance = parseFloat(wallet.balance || "0");
-        const newBalance = currentBalance - walletAmount;
-        await storage.updateWalletBalance(wallet.id, userId, newBalance.toString());
+        await storage.incrementWalletBalance(wallet.id, userId, -walletAmount);
       } else if (transactionData.type === 'income') {
-        const currentBalance = parseFloat(wallet.balance || "0");
-        const newBalance = currentBalance + walletAmount;
-        await storage.updateWalletBalance(wallet.id, userId, newBalance.toString());
+        await storage.incrementWalletBalance(wallet.id, userId, walletAmount);
       }
 
       // Update the transaction
@@ -1063,27 +1053,21 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Transaction not found" });
       }
 
-      // Reverse the transaction effect on wallet balances
+      // Reverse the transaction effect on wallet balances (atomic increments).
       const wallet = await storage.getWallet(existingTransaction.walletId, userId);
       if (wallet) {
         const amount = parseFloat(existingTransaction.amount || "0");
-        const currentBalance = parseFloat(wallet.balance || "0");
-        
+
         if (existingTransaction.type === 'expense') {
-          // Refund the expense
-          await storage.updateWalletBalance(wallet.id, userId, (currentBalance + amount).toString());
+          await storage.incrementWalletBalance(wallet.id, userId, amount);
         } else if (existingTransaction.type === 'income') {
-          // Remove the income
-          await storage.updateWalletBalance(wallet.id, userId, (currentBalance - amount).toString());
+          await storage.incrementWalletBalance(wallet.id, userId, -amount);
         } else if (existingTransaction.type === 'transfer' && existingTransaction.toWalletId) {
-          // Reverse transfer: add back to source, remove from destination
-          await storage.updateWalletBalance(wallet.id, userId, (currentBalance + amount).toString());
-          
+          await storage.incrementWalletBalance(wallet.id, userId, amount);
           const toWallet = await storage.getWallet(existingTransaction.toWalletId, userId);
           if (toWallet) {
             const toAmount = parseFloat(existingTransaction.toWalletAmount || existingTransaction.amount || "0");
-            const toCurrentBalance = parseFloat(toWallet.balance || "0");
-            await storage.updateWalletBalance(toWallet.id, userId, (toCurrentBalance - toAmount).toString());
+            await storage.incrementWalletBalance(toWallet.id, userId, -toAmount);
           }
         }
       }
@@ -1293,7 +1277,8 @@ export async function registerRoutes(
             }
 
             // Create expense transaction (Accounting only - does not reduce wallet balance)
-            // We do this by calling storage.createTransaction directly and NOT updating wallet balance
+            // We do this by calling storage.createTransaction directly and NOT updating wallet balance.
+            // Tag with a marker so revert can find this exact transaction without fuzzy description matching.
             await storage.createTransaction({
               userId,
               type: 'expense',
@@ -1302,27 +1287,19 @@ export async function registerRoutes(
               walletId: lendTx.walletId,
               categoryId: badDebtCat.id,
               description: `坏账核销: ${existingLoan.person} (账面支出，不扣减余额)`,
+              tags: [`bad_debt_writeoff:loan_${id}`],
               date: new Date(),
               // We intentionally do NOT set loanId so it appears in stats
             });
           }
         }
       } else if (existingLoan.status === 'bad_debt' && updateData.status && updateData.status !== 'bad_debt') {
-        // Reverting from bad debt - try to remove the auto-generated transaction
-        // This is a best-effort cleanup based on description convention
-        const searchDesc = `坏账核销: ${existingLoan.person}`;
-        const recentTxs = await storage.getTransactions(userId, { 
-          search: searchDesc, 
-          limit: 5 
-        });
-        
-        // Find the one that matches our pattern and looks recent/relevant
-        const txToDelete = recentTxs.find(t => 
-          t.description?.includes(searchDesc) && 
-          t.type === 'expense' && 
-          !t.loanId
+        // Reverting from bad debt - precisely locate the writeoff transaction by tag marker.
+        const marker = `bad_debt_writeoff:loan_${id}`;
+        const candidates = await storage.getTransactions(userId, { limit: 100 });
+        const txToDelete = candidates.find(t =>
+          Array.isArray((t as any).tags) && (t as any).tags.includes(marker) && t.type === 'expense'
         );
-
         if (txToDelete) {
           await storage.deleteTransaction(txToDelete.id, userId);
           // Note: We don't need to refund the wallet because we never deducted it
@@ -2049,17 +2026,29 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const credentials = await storage.getExchangeCredentials(userId);
       
-      // Return credentials without exposing full API keys
-      const sanitized = credentials.map(c => ({
-        id: c.id,
-        exchange: c.exchange,
-        label: c.label,
-        manualBalance: c.manualBalance || '0',
-        isActive: c.isActive,
-        lastSyncAt: c.lastSyncAt,
-        createdAt: c.createdAt,
-        apiKeyPreview: c.apiKey ? `${decrypt(c.apiKey).substring(0, 8)}...` : '',
-      }));
+      // Return credentials without exposing full API keys.
+      // We cache the decrypted preview so subsequent list requests don't repeatedly run AES.
+      const sanitized = credentials.map(c => {
+        let preview = apiKeyPreviewCache.get(c.id);
+        if (preview === undefined && c.apiKey) {
+          try {
+            preview = `${decrypt(c.apiKey).substring(0, 8)}...`;
+            apiKeyPreviewCache.set(c.id, preview);
+          } catch {
+            preview = '';
+          }
+        }
+        return {
+          id: c.id,
+          exchange: c.exchange,
+          label: c.label,
+          manualBalance: c.manualBalance || '0',
+          isActive: c.isActive,
+          lastSyncAt: c.lastSyncAt,
+          createdAt: c.createdAt,
+          apiKeyPreview: preview || '',
+        };
+      });
       
       res.json(sanitized);
     } catch (error) {
@@ -2108,6 +2097,7 @@ export async function registerRoutes(
           isActive: true,
           lastSyncAt: new Date(),
         });
+        apiKeyPreviewCache.delete(existing.id);
         return res.json({
           id: updated?.id,
           exchange: updated?.exchange,
@@ -2149,6 +2139,7 @@ export async function registerRoutes(
       
       const deleted = await storage.deleteExchangeCredential(id, userId);
       if (deleted) {
+        apiKeyPreviewCache.delete(id);
         res.status(204).send();
       } else {
         res.status(404).json({ message: "Exchange credentials not found" });
@@ -2321,9 +2312,34 @@ export async function registerRoutes(
       const avgMonthlyExpense = totalExpense / distinctMonths;
       const savingsRate = totalIncome > 0 ? (totalIncome - totalExpense) / totalIncome : 0;
 
-      // Expense category breakdown
-      const stats = await storage.getTransactionStats(userId, startDate, endDate);
-      const topExpenseCategories = stats.categoryBreakdown.slice(0, 5);
+      // Expense category breakdown — compute from the transactions we've already loaded
+      // instead of re-running getTransactionStats which would do a duplicate full scan.
+      const categoryTotalsForAi = new Map<number, { name: string; total: number; color: string }>();
+      for (const t of transactions) {
+        if (t.loanId) continue;
+        if (t.type !== 'expense' || !t.categoryId || !t.category) continue;
+        const rate = parseFloat(t.wallet?.exchangeRateToDefault || '1');
+        const amount = parseFloat(t.amount) * (isNaN(rate) || rate <= 0 ? 1 : rate);
+        const existing = categoryTotalsForAi.get(t.categoryId);
+        if (existing) {
+          existing.total += amount;
+        } else {
+          categoryTotalsForAi.set(t.categoryId, {
+            name: t.category.name,
+            total: amount,
+            color: t.category.color || '#6B7280',
+          });
+        }
+      }
+      const topExpenseCategories = Array.from(categoryTotalsForAi.entries())
+        .map(([categoryId, data]) => ({
+          categoryId,
+          categoryName: data.name,
+          total: data.total,
+          color: data.color,
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
 
       // Emergency fund months: sum of flexible wallets converted to default currency / avg monthly expense
       let flexibleTotal = 0;
@@ -2346,20 +2362,22 @@ export async function registerRoutes(
         color: (b as any).categoryColor,
       })).sort((a, b) => b.deviation - a.deviation).slice(0, 5);
 
-      // Heuristic recurring payments: same amount on 3+ different months within range
+      // Heuristic recurring payments: same amount + same category on 3+ different months.
+      // Including categoryId in the key avoids treating "the same coincidental 35 yuan lunch"
+      // each month as a subscription.
       const recurringCandidates: Record<string, { amount: number; countMonths: number; sample: any }> = {};
-      const seenByMonthAmount: Record<string, Set<string>> = {};
+      const seenByMonthKey: Record<string, Set<string>> = {};
       for (const t of transactions) {
         if (t.type !== 'expense') continue;
         const amt = parseFloat(t.amount);
         if (amt <= 0) continue;
         const keyMonth = monthKey(new Date(t.date));
-        const amtKey = `${Math.round(amt * 100) / 100}`;
-        if (!seenByMonthAmount[keyMonth]) seenByMonthAmount[keyMonth] = new Set();
-        if (!seenByMonthAmount[keyMonth].has(amtKey)) {
-          seenByMonthAmount[keyMonth].add(amtKey);
-          if (!recurringCandidates[amtKey]) recurringCandidates[amtKey] = { amount: amt, countMonths: 0, sample: t };
-          recurringCandidates[amtKey].countMonths += 1;
+        const compositeKey = `${Math.round(amt * 100) / 100}|cat:${t.categoryId || 'none'}`;
+        if (!seenByMonthKey[keyMonth]) seenByMonthKey[keyMonth] = new Set();
+        if (!seenByMonthKey[keyMonth].has(compositeKey)) {
+          seenByMonthKey[keyMonth].add(compositeKey);
+          if (!recurringCandidates[compositeKey]) recurringCandidates[compositeKey] = { amount: amt, countMonths: 0, sample: t };
+          recurringCandidates[compositeKey].countMonths += 1;
         }
       }
       const topRecurring = Object.values(recurringCandidates)
@@ -2462,16 +2480,4 @@ export async function registerRoutes(
 
       // Save cache
       try { await storage.saveAiInsights(userId, aiJson); } catch {}
-      res.json({ metrics, ai: aiJson, aiEnabled: true, fromCache: false, cachedAt: new Date().toISOString(), nextAllowedAt: new Date(Date.now() + cooldownMs).toISOString(), cooldownRemainingMs: cooldownMs });
-    } catch (error: any) {
-      console.error('Error generating AI insights:', error);
-      const aborted = (error && (error.name === 'AbortError' || /aborted|timeout/i.test(String(error.message || ''))));
-      if (aborted) {
-        return res.json({ metrics, ai: null, aiEnabled: false, message: 'AI请求超时，请稍后重试' });
-      }
-      return res.json({ metrics, ai: null, aiEnabled: false, message: 'AI 生成失败：' + String(error?.message || '未知错误') });
-    }
-  });
-
-  return httpServer;
-}
+      res.json({ metrics, ai: aiJson,

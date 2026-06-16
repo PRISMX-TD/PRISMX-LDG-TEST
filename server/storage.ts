@@ -50,7 +50,7 @@ import {
   type InsertLoan,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, gte, lte, ilike, getTableColumns } from "drizzle-orm";
+import { eq, desc, and, or, gte, lte, ilike, getTableColumns, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 // Default categories for new users
@@ -93,6 +93,8 @@ export interface IStorage {
   updateWallet(id: number, userId: string, data: Partial<InsertWallet>): Promise<Wallet | undefined>;
   deleteWallet(id: number, userId: string): Promise<boolean>;
   updateWalletBalance(id: number, userId: string, amount: string): Promise<Wallet | undefined>;
+  /** Atomic increment to avoid lost-update races when concurrent transactions modify the same wallet. */
+  incrementWalletBalance(id: number, userId: string, delta: number): Promise<Wallet | undefined>;
   setDefaultWallet(id: number, userId: string): Promise<Wallet | undefined>;
 
   // Category operations
@@ -282,6 +284,21 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async incrementWalletBalance(
+    id: number,
+    userId: string,
+    delta: number
+  ): Promise<Wallet | undefined> {
+    // Single SQL statement: balance = balance + delta. Concurrent writes serialize at row level.
+    const deltaStr = delta.toFixed(2);
+    const [updated] = await db
+      .update(wallets)
+      .set({ balance: sql`${wallets.balance} + ${deltaStr}::numeric` })
+      .where(and(eq(wallets.id, id), eq(wallets.userId, userId)))
+      .returning();
+    return updated;
+  }
+
   async updateWallet(
     id: number,
     userId: string,
@@ -331,17 +348,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async setDefaultWallet(id: number, userId: string): Promise<Wallet | undefined> {
-    await db
-      .update(wallets)
-      .set({ isDefault: false })
-      .where(eq(wallets.userId, userId));
-    
-    const [updated] = await db
-      .update(wallets)
-      .set({ isDefault: true })
-      .where(and(eq(wallets.id, id), eq(wallets.userId, userId)))
-      .returning();
-    return updated;
+    // Wrap in transaction so we never end up with zero or multiple defaults if
+    // the second statement fails (and the unique index uniq_wallets_user_default enforces this).
+    return await db.transaction(async (tx) => {
+      await tx
+        .update(wallets)
+        .set({ isDefault: false })
+        .where(and(eq(wallets.userId, userId), eq(wallets.isDefault, true)));
+
+      const [updated] = await tx
+        .update(wallets)
+        .set({ isDefault: true })
+        .where(and(eq(wallets.id, id), eq(wallets.userId, userId)))
+        .returning();
+      return updated;
+    });
   }
 
   // Category operations
@@ -489,7 +510,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTransactionsByWallet(walletId: number, userId: string): Promise<boolean> {
     // Delete all transactions where this wallet is the source OR destination
-    await db
+    const deleted = await db
       .delete(transactions)
       .where(and(
         eq(transactions.userId, userId),
@@ -497,8 +518,9 @@ export class DatabaseStorage implements IStorage {
           eq(transactions.walletId, walletId),
           eq(transactions.toWalletId, walletId)
         )
-      ));
-    return true;
+      ))
+      .returning();
+    return deleted.length > 0;
   }
 
   async getTransactionStats(userId: string, startDate: Date, endDate: Date): Promise<TransactionStats> {
@@ -585,11 +607,12 @@ export class DatabaseStorage implements IStorage {
 
   async getBudgetSpending(userId: string, month: number, year: number): Promise<BudgetWithSpending[]> {
     const monthBudgets = await this.getBudgets(userId, month, year);
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
-    
+    const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    // FIX: end-of-month was at 00:00:00, missing the entire last day. Push to 23:59:59.999.
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
     const result: BudgetWithSpending[] = [];
-    
+
     for (const budget of monthBudgets) {
       const category = await this.getCategory(budget.categoryId, userId);
       const transactions = await this.getTransactions(userId, {
@@ -598,13 +621,17 @@ export class DatabaseStorage implements IStorage {
         categoryId: budget.categoryId,
         type: 'expense',
       });
-      
+
+      // FIX: budgets are denominated in the user's default currency, but transactions
+      // may live in wallets of different currencies. Convert each transaction's
+      // wallet-currency amount to default currency using its wallet's exchange rate.
       const spent = transactions.reduce((sum, t) => {
-        // Skip loan transactions for budget spending
         if (t.loanId) return sum;
-        return sum + parseFloat(t.amount);
+        const rate = parseFloat(t.wallet?.exchangeRateToDefault || '1');
+        const safeRate = isNaN(rate) || rate <= 0 ? 1 : rate;
+        return sum + parseFloat(t.amount) * safeRate;
       }, 0);
-      
+
       result.push({
         ...budget,
         spent,
@@ -612,7 +639,7 @@ export class DatabaseStorage implements IStorage {
         categoryColor: category?.color || '#6B7280',
       });
     }
-    
+
     return result;
   }
 
@@ -1014,43 +1041,4 @@ export class DatabaseStorage implements IStorage {
       
       let amount = parseFloat(t.amount);
       
-      // Handle cross-currency: if transaction currency != loan currency
-      // We need to convert transaction amount (Wallet Currency) to Loan Currency.
-      // t.exchangeRate usually stores (Wallet Amount / Loan Amount) if we set it correctly in frontend.
-      // So Loan Amount = Wallet Amount / Rate.
-      if (t.currency !== loan.currency) {
-          const rate = parseFloat(t.exchangeRate || "1");
-          if (rate > 0) {
-              amount = amount / rate;
-          }
-      }
-
-      if (loanType === 'lend' && type === 'income') {
-        totalPaid += amount;
-      } else if (loanType === 'borrow' && type === 'expense') {
-        totalPaid += amount;
-      }
-    }
-
-    const totalAmount = parseFloat(loan.totalAmount);
-    // Allow small float error
-    const isPaid = totalPaid >= totalAmount - 0.01;
-    
-    await this.updateLoan(loanId, userId, {
-      paidAmount: totalPaid.toFixed(2),
-      status: isPaid ? 'settled' : loan.status === 'settled' ? 'active' : loan.status
-    });
-  }
-
-  async getTransactionsByLoanId(loanId: number, userId: string): Promise<Transaction[]> {
-    return db
-      .select()
-      .from(transactions)
-      .where(and(eq(transactions.loanId, loanId), eq(transactions.userId, userId)))
-      .orderBy(desc(transactions.date));
-  }
-}
-
-import { MemStorage } from "./mem-storage";
-export const isMock = !process.env.DATABASE_URL || process.env.DATABASE_URL.includes("dummy");
-export const storage: IStorage = isMock ? new MemStorage() : new DatabaseStorage();
+      // Handle cross-currency
