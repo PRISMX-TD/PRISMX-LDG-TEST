@@ -110,7 +110,8 @@ async function networkFirst(request) {
       return new Response('Auth unavailable', { status: 503, statusText: 'Service Unavailable' });
     }
 
-    if (request.headers.get('accept').includes('text/html')) {
+    // FIX: get('accept') may be null, in which case .includes() throws TypeError.
+    if (request.headers.get('accept')?.includes('text/html')) {
       return caches.match(OFFLINE_URL);
     }
     

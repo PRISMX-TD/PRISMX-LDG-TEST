@@ -10,13 +10,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getCurrencyInfo, type Wallet, type Category } from "@shared/schema";
 import { Loader2 } from "lucide-react";
 
-type CorrectionMethod = 
+// Server accepts: adjust_income_expense | adjust_transfer | change_current_balance | set_initial_balance.
+// The last three all produced the exact same behavior (silent balance overwrite, no transaction),
+// so the UI surfaces just two distinct, meaningful choices and maps to the server names internally.
+type UiCorrectionChoice = "with_transaction" | "silent";
+type ServerCorrectionMethod =
   | "adjust_income_expense"
   | "adjust_transfer"
   | "change_current_balance"
@@ -29,26 +33,16 @@ interface BalanceCorrectionModalProps {
   defaultCurrency: string;
 }
 
-const correctionMethods: { value: CorrectionMethod; title: string; description: string }[] = [
+const choices: { value: UiCorrectionChoice; title: string; description: string }[] = [
   {
-    value: "adjust_income_expense",
-    title: "差额补记收支",
-    description: "添加收入或支出交易记录，会计入收支统计。",
+    value: "with_transaction",
+    title: "差额补记收支（影响统计）",
+    description: "会自动生成一笔'其他'分类的收入/支出交易，计入收支统计与预算。",
   },
   {
-    value: "adjust_transfer",
-    title: "直接调整余额",
-    description: "直接调整余额，不创建交易记录，不影响收支统计。",
-  },
-  {
-    value: "change_current_balance",
-    title: "更改当前余额",
-    description: "直接设置当前余额，不创建交易记录。",
-  },
-  {
-    value: "set_initial_balance",
-    title: "设置初始余额",
-    description: "", // Will be dynamically set
+    value: "silent",
+    title: "直接调整余额（不计入统计）",
+    description: "只修改钱包余额数字，不产生交易记录，不影响收支统计与预算。",
   },
 ];
 
@@ -61,7 +55,7 @@ export function BalanceCorrectionModal({
   const { toast } = useToast();
   const currentBalance = parseFloat(wallet.balance || "0");
   const [targetBalance, setTargetBalance] = useState(currentBalance.toString());
-  const [selectedMethod, setSelectedMethod] = useState<CorrectionMethod>("adjust_income_expense");
+  const [selectedChoice, setSelectedChoice] = useState<UiCorrectionChoice>("with_transaction");
   const currencyInfo = getCurrencyInfo(wallet.currency || defaultCurrency);
 
   const { data: categories = [] } = useQuery<Category[]>({
@@ -71,13 +65,13 @@ export function BalanceCorrectionModal({
   useEffect(() => {
     if (open) {
       setTargetBalance(currentBalance.toString());
-      setSelectedMethod("adjust_income_expense");
+      setSelectedChoice("with_transaction");
     }
   }, [open, currentBalance]);
 
   const correctionMutation = useMutation({
     mutationFn: async (data: {
-      method: CorrectionMethod;
+      method: ServerCorrectionMethod;
       targetBalance: string;
       walletId: number;
     }) => {
@@ -108,8 +102,13 @@ export function BalanceCorrectionModal({
       return;
     }
 
+    // Map the two-choice UI back onto the server's enum. Both silent variants resolve to
+    // adjust_transfer, which is the canonical silent path on the server.
+    const serverMethod: ServerCorrectionMethod =
+      selectedChoice === "with_transaction" ? "adjust_income_expense" : "adjust_transfer";
+
     correctionMutation.mutate({
-      method: selectedMethod,
+      method: serverMethod,
       targetBalance: target.toString(),
       walletId: wallet.id,
     });
@@ -147,33 +146,30 @@ export function BalanceCorrectionModal({
             )}
           </div>
 
-          <div className="space-y-3">
-            {correctionMethods.map((method) => {
-              const description =
-                method.value === "set_initial_balance"
-                  ? `设置初始余额为指定金额，当前初始余额为${currencyInfo.symbol}${currentBalance.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}。`
-                  : method.description;
-
-              return (
-                <div
-                  key={method.value}
-                  className="flex items-start gap-3 p-3 rounded-lg hover-elevate cursor-pointer"
-                  onClick={() => setSelectedMethod(method.value)}
-                  data-testid={`option-${method.value}`}
-                >
-                  <Checkbox
-                    checked={selectedMethod === method.value}
-                    onCheckedChange={() => setSelectedMethod(method.value)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{method.title}</p>
-                    <p className="text-xs text-muted-foreground">{description}</p>
-                  </div>
+          <RadioGroup
+            value={selectedChoice}
+            onValueChange={(v) => setSelectedChoice(v as UiCorrectionChoice)}
+            className="space-y-3"
+          >
+            {choices.map((choice) => (
+              <label
+                key={choice.value}
+                htmlFor={`correction-${choice.value}`}
+                className="flex items-start gap-3 p-3 rounded-lg hover-elevate cursor-pointer border border-border/40"
+                data-testid={`option-${choice.value}`}
+              >
+                <RadioGroupItem
+                  id={`correction-${choice.value}`}
+                  value={choice.value}
+                  className="mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{choice.title}</p>
+                  <p className="text-xs text-muted-foreground">{choice.description}</p>
                 </div>
-              );
-            })}
-          </div>
+              </label>
+            ))}
+          </RadioGroup>
         </div>
 
         <div className="flex gap-2 pt-2">

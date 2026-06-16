@@ -56,9 +56,15 @@ export function WalletSection({ userName = "USER", defaultWalletBalance = 0, cur
   const rate = exchangeRate?.rate || 4.45;
 
   const { user } = useAuth();
-  const displayUserName = user?.firstName && user?.lastName 
-    ? `${user.firstName} ${user.lastName}` 
-    : user?.username || userName;
+  // FIX: schema has no `username` column. Build a sensible display name from firstName / lastName / email.
+  const displayUserName = (() => {
+    const a = (user?.firstName || "").trim();
+    const b = (user?.lastName || "").trim();
+    const full = [a, b].filter(Boolean).join(" ");
+    if (full) return full;
+    if (user?.email) return user.email.split("@")[0];
+    return userName;
+  })();
 
   return (
     <div className="flex-1 flex flex-col gap-4 w-full lg:min-w-[300px] xl:min-w-[350px]">

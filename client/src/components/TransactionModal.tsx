@@ -699,7 +699,7 @@ export function TransactionModal({
       });
       return;
     }
-    
+
     if (data.type === "transfer") {
       const fromWallet = wallets.find((w) => String(w.id) === data.walletId);
       const toWallet = wallets.find((w) => String(w.id) === data.toWalletId);
@@ -714,12 +714,35 @@ export function TransactionModal({
         }
       }
     }
-    
-    // Ensure amount is evaluated before submitting if there's an expression
-    if (expressionResult) {
-      data.amount = expressionResult;
+
+    // FIX: previously the form's amount could contain a half-typed expression like "5.+.5",
+    // which the regex whitelist permits but parseFloat truncates to 5. Force a strict
+    // evaluation here; if it doesn't reduce to a positive number, block submission.
+    const raw = data.amount.trim();
+    if (/[+\-*/]/.test(raw)) {
+      const evaluated = evaluateExpression(raw);
+      if (!evaluated || !(parseFloat(evaluated) > 0)) {
+        toast({
+          title: "金额无效",
+          description: "请检查计算公式或输入有效数字",
+          variant: "destructive",
+        });
+        return;
+      }
+      data.amount = evaluated;
+    } else {
+      const numeric = parseFloat(raw);
+      if (!(numeric > 0)) {
+        toast({
+          title: "金额无效",
+          description: "请输入大于 0 的金额",
+          variant: "destructive",
+        });
+        return;
+      }
+      data.amount = numeric.toString();
     }
-    
+
     mutation.mutate(data);
   };
 

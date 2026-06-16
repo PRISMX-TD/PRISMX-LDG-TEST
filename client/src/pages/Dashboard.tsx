@@ -84,13 +84,9 @@ export default function Dashboard() {
       enabled: isAuthenticated,
     });
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      queryClient.prefetchQuery({ queryKey: ["/api/wallets"] });
-      queryClient.prefetchQuery({ queryKey: ["/api/categories"] });
-      queryClient.prefetchQuery({ queryKey: ["/api/transactions", { limit: 100 }] });
-    }
-  }, [isAuthenticated]);
+  // NOTE: previous version called prefetchQuery on the same keys here, which fires
+  // a second redundant HTTP request because the useQuery above already starts a fetch.
+  // useQuery itself initiates the fetch immediately when enabled, so no prefetch is needed.
 
   const { data: dashboardPrefs } = useQuery<DashboardPreferences>({
     queryKey: ["/api/dashboard-preferences"],
@@ -114,17 +110,18 @@ export default function Dashboard() {
   };
 
   const now = new Date();
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  // FIX: end-of-month must include the entire last day, not stop at its 00:00:00.
+  const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   const prevMonthStart = new Date(
     now.getFullYear(),
     now.getMonth() === 0 ? 11 : now.getMonth() - 1,
-    1
+    1, 0, 0, 0, 0
   );
   const prevMonthEnd = new Date(
     now.getFullYear(),
     now.getMonth(),
-    0
+    0, 23, 59, 59, 999
   );
 
   const { data: currentStats } = useQuery<{ totalIncome: number; totalExpense: number }>({
@@ -136,34 +133,38 @@ export default function Dashboard() {
     enabled: isAuthenticated,
   });
 
+  // FIX: previously we filtered "flexible" totals from the recent-100 transaction list,
+  // which silently undercounts when the user has more than 100 transactions in the period.
+  // Pull the complete current-month set so flexibility totals match server stats.
+  const { data: currentMonthTx = [] } = useQuery<TransactionWithRelations[]>({
+    queryKey: ["/api/transactions", { startDate: currentMonthStart.toISOString(), endDate: currentMonthEnd.toISOString() }],
+    enabled: isAuthenticated,
+  });
+
   const monthlyIncome = currentStats?.totalIncome || 0;
   const monthlyExpense = currentStats?.totalExpense || 0;
   const prevMonthlyIncome = prevStats?.totalIncome || 0;
   const prevMonthlyExpense = prevStats?.totalExpense || 0;
 
-  const monthlyIncomeFlexible = transactions
-    .filter((t) => t.type === "income")
+  const monthlyIncomeFlexible = useMemo(() => currentMonthTx
+    .filter((t) => t.type === "income" && !t.loanId)
     .reduce((sum, t) => {
       const wallet = wallets.find(w => w.id === t.walletId);
-      const date = new Date(t.date);
-      const inCurrent = date >= currentMonthStart && date <= currentMonthEnd;
-      if (inCurrent && wallet?.isFlexible) {
+      if (wallet?.isFlexible) {
         return sum + getConvertedAmount(t);
       }
       return sum;
-    }, 0);
+    }, 0), [currentMonthTx, wallets]);
 
-  const monthlyExpenseFlexible = transactions
-    .filter((t) => t.type === "expense")
+  const monthlyExpenseFlexible = useMemo(() => currentMonthTx
+    .filter((t) => t.type === "expense" && !t.loanId)
     .reduce((sum, t) => {
       const wallet = wallets.find(w => w.id === t.walletId);
-      const date = new Date(t.date);
-      const inCurrent = date >= currentMonthStart && date <= currentMonthEnd;
-      if (inCurrent && wallet?.isFlexible) {
+      if (wallet?.isFlexible) {
         return sum + getConvertedAmount(t);
       }
       return sum;
-    }, 0);
+    }, 0), [currentMonthTx, wallets]);
 
   const totalAssets = useMemo(() => {
     return wallets.reduce((sum, w) => {
@@ -191,7 +192,8 @@ export default function Dashboard() {
   const prevLiquidAssets = liquidAssets - (monthlyIncomeFlexible - monthlyExpenseFlexible);
 
   const userCurrency = user?.defaultCurrency || "MYR";
-  const defaultWallet = wallets.find((w) => w.id === user?.defaultWalletId) || wallets[0];
+  // FIX: schema has no users.defaultWalletId; default is signalled by wallets.isDefault.
+  const defaultWallet = wallets.find((w) => w.isDefault) || wallets[0];
   const defaultWalletBalance = defaultWallet ? parseFloat(defaultWallet.balance) : 0;
 
   const deleteMutation = useMutation({
@@ -269,11 +271,11 @@ export default function Dashboard() {
             )}
             {(dashboardPrefs?.showWallets !== false) && (
               <WalletSection
-                userName={user.username}
+                userName={(user.firstName || user.email || "USER") as string}
                 defaultWalletBalance={defaultWalletBalance}
                 currency={userCurrency}
                 wallets={wallets}
-                defaultWalletId={user.defaultWalletId}
+                defaultWalletId={defaultWallet?.id ?? null}
               />
             )}
           </div>
@@ -288,27 +290,4 @@ export default function Dashboard() {
                 }}
               />
             </div>
-          )}
-        </div>
-      </div>
-
-      <TransactionModal
-        open={isModalOpen}
-        onOpenChange={(open) => {
-          setIsModalOpen(open);
-          if (!open) {
-            setEditingTransaction(null);
-          }
-        }}
-        wallets={wallets}
-        categories={categories}
-        subLedgers={subLedgers}
-        defaultCurrency={user?.defaultCurrency || "MYR"}
-        transaction={editingTransaction}
-        onDelete={handleDeleteTransaction}
-      />
-      <DashboardCustomizeModal open={isCustomizeOpen} onOpenChange={setIsCustomizeOpen} />
-
-    </div>
-  );
-}
+          )
