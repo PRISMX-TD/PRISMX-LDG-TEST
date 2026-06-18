@@ -8,6 +8,9 @@ const smtpConfig = {
   host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
   port: Number(process.env.SMTP_PORT) || 587,
   secure: false,
+  connectionTimeout: 10_000, // 10s timeout instead of default 2min
+  greetingTimeout: 10_000,
+  socketTimeout: 15_000,
   auth: {
     user: process.env.SMTP_USER || "",
     pass: process.env.SMTP_PASS || "",

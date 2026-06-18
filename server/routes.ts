@@ -224,10 +224,10 @@ export async function registerRoutes(
       const origin = req.headers.origin || `https://${req.headers.host}`;
       const resetUrl = `${origin}/reset-password?token=${token}`;
 
-      const sent = await sendPasswordResetEmail(email, resetUrl);
-      if (!sent) {
-        console.error(`[forgot-password] Failed to send email to ${email}`);
-      }
+      // Fire-and-forget: don't block the response on email delivery
+      sendPasswordResetEmail(email, resetUrl).then(sent => {
+        if (!sent) console.error(`[forgot-password] Failed to send email to ${email}`);
+      });
 
       res.json({ message: "如该邮箱已注册，重置链接已发送，1 小时内有效。检查垃圾邮件文件夹或稍后再试。" });
     } catch (error) {
