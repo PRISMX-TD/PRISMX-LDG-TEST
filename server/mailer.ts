@@ -1,14 +1,51 @@
 /**
- * Simple SMTP mailer using Brevo (or any SMTP) to send password reset emails.
- * Uses nodemailer with config from environment variables.
+ * Mailer — tries Brevo REST API first (works on Railway), falls back to SMTP.
+ * Uses HTTPS (port 443) so it's never blocked by PaaS outbound restrictions.
  */
 import nodemailer from "nodemailer";
 
+// ---- Brevo REST API (HTTPS, never blocked) --------------------------------
+const BREVO_API_KEY = process.env.BREVO_API_KEY || process.env.SMTP_PASS || "";
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+const fromAddress = process.env.SMTP_FROM || "noreply@prismxledger.com";
+const fromName = process.env.SMTP_FROM_NAME || "PRISMX";
+
+async function sendViaBrevoApi(to: string, subject: string, html: string): Promise<boolean> {
+  if (!BREVO_API_KEY) return false;
+  try {
+    const res = await fetch(BREVO_API_URL, {
+      method: "POST",
+      headers: {
+        "api-key": BREVO_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: { name: fromName, email: fromAddress },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json() as any;
+      console.log(`[mailer:api] Email sent to ${to}: ${data.messageId}`);
+      return true;
+    }
+    const err = await res.json().catch(() => ({})) as any;
+    console.error(`[mailer:api] Brevo API error ${res.status}: ${err.message || "unknown"}`);
+    return false;
+  } catch (err: any) {
+    console.error(`[mailer:api] Request failed: ${err.message}`);
+    return false;
+  }
+}
+
+// ---- SMTP fallback --------------------------------------------------------
 const smtpConfig = {
   host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
   port: Number(process.env.SMTP_PORT) || 587,
   secure: false,
-  connectionTimeout: 10_000, // 10s timeout instead of default 2min
+  connectionTimeout: 10_000,
   greetingTimeout: 10_000,
   socketTimeout: 15_000,
   auth: {
@@ -17,20 +54,16 @@ const smtpConfig = {
   },
 };
 
-const fromAddress = process.env.SMTP_FROM || "noreply@prismxledger.com";
-const fromName = process.env.SMTP_FROM_NAME || "PRISMX";
-
 const transporter = nodemailer.createTransport(smtpConfig);
 
-// Verify SMTP config at startup
+// Verify SMTP at startup
 transporter.verify().then(() => {
-  console.log(`[mailer] SMTP ready — ${smtpConfig.host}:${smtpConfig.port} as ${smtpConfig.auth.user}`);
+  console.log(`[mailer:smtp] Ready — ${smtpConfig.host}:${smtpConfig.port}`);
 }).catch((err: any) => {
-  console.warn(`[mailer] SMTP NOT configured or unreachable: ${err.message}`);
-  console.warn(`[mailer] host=${smtpConfig.host} user=${smtpConfig.auth.user || '(empty)'}`);
+  console.warn(`[mailer:smtp] Unavailable: ${err.message} (will use API fallback)`);
 });
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+async function sendViaSmtp(to: string, subject: string, html: string): Promise<boolean> {
   try {
     const info = await transporter.sendMail({
       from: `"${fromName}" <${fromAddress}>`,
@@ -38,12 +71,22 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       subject,
       html,
     });
-    console.log(`[mailer] Email sent to ${to}: ${info.messageId}`);
+    console.log(`[mailer:smtp] Email sent to ${to}: ${info.messageId}`);
     return true;
   } catch (error: any) {
-    console.error(`[mailer] Failed to send email to ${to}: ${error.message}`);
+    console.error(`[mailer:smtp] Failed: ${error.message}`);
     return false;
   }
+}
+
+// ---- Public API -----------------------------------------------------------
+export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  // Try API first (unblocked on Railway), fall back to SMTP
+  if (BREVO_API_KEY) {
+    const ok = await sendViaBrevoApi(to, subject, html);
+    if (ok) return true;
+  }
+  return sendViaSmtp(to, subject, html);
 }
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<boolean> {
