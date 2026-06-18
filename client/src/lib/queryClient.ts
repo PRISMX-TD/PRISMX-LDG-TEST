@@ -8,14 +8,10 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-async function getFallbackHeaders(): Promise<Record<string, string>> {
+function getFallbackHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
-  try {
-    const token = await getSessionToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-  } catch {
-    // Neon Auth unavailable — proceed without auth header
-  }
+  const token = getSessionToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   return headers;
 }
 
@@ -38,7 +34,7 @@ export async function apiRequest(
   const headers: Record<string, string> = {};
   if (data) headers["Content-Type"] = "application/json";
   if (csrf) headers['x-csrf-token'] = csrf;
-  Object.assign(headers, await getFallbackHeaders());
+  Object.assign(headers, getFallbackHeaders());
   const res = await fetch(url, {
     method,
     headers,
@@ -90,7 +86,7 @@ export const getQueryFn: <T>(options: {
       if (qs) url = `${url}?${qs}`;
     }
 
-    let res = await fetch(url, { credentials: "include", headers: await getFallbackHeaders() });
+    let res = await fetch(url, { credentials: "include", headers: getFallbackHeaders() });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

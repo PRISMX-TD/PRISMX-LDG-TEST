@@ -2,8 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, TransactionFilters } from "./storage";
 import { setupAuth, isAuthenticated } from "./neonAuth";
+import { signToken } from "./authToken";
 import { sendPasswordResetEmail } from "./mailer";
-import { pool } from "./db";
 import { 
   insertTransactionSchema, 
   supportedCurrencies,
@@ -108,6 +108,71 @@ export async function registerRoutes(
     res.json({ neonAuthUrl: process.env.NEON_AUTH_URL || "" });
   });
 
+  // ---- Password hashing helpers -------------------------------------------
+  function hashPassword(password: string): string {
+    const salt = crypto.randomBytes(16);
+    const hash = crypto.scryptSync(password, salt, 64);
+    return `scrypt:${salt.toString("hex")}:${hash.toString("hex")}`;
+  }
+  function verifyPassword(password: string, stored: string): boolean {
+    const [method, saltHex, hashHex] = stored.split(":");
+    if (method !== "scrypt" || !saltHex || !hashHex) return false;
+    const salt = Buffer.from(saltHex, "hex");
+    const expected = Buffer.from(hashHex, "hex");
+    const actual = crypto.scryptSync(password, salt, expected.length);
+    return crypto.timingSafeEqual(actual, expected);
+  }
+
+  // ---- Auth: register -----------------------------------------------------
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { email, password, name } = req.body || {};
+      if (!email || !password || typeof email !== "string" || typeof password !== "string") {
+        return res.status(400).json({ message: "邮箱和密码必填" });
+      }
+      if (password.length < 8) {
+        return res.status(400).json({ message: "密码长度至少 8 位" });
+      }
+      const existing = await storage.getUserByEmail(email);
+      if (existing) {
+        return res.status(409).json({ message: "该邮箱已注册" });
+      }
+      const user = await storage.upsertUser({
+        email,
+        passwordHash: hashPassword(password),
+        firstName: name || email.split("@")[0],
+      });
+      await storage.initializeUserDefaults(user.id, "MYR");
+      const token = signToken(user.id);
+      res.status(201).json({ token, userId: user.id, user });
+    } catch (err) {
+      console.error("[register] error:", err);
+      res.status(500).json({ message: "注册失败" });
+    }
+  });
+
+  // ---- Auth: login --------------------------------------------------------
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { email, password } = req.body || {};
+      if (!email || !password || typeof email !== "string" || typeof password !== "string") {
+        return res.status(400).json({ message: "邮箱和密码必填" });
+      }
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ message: "邮箱未注册或未设置密码，请先注册或重置密码" });
+      }
+      if (!verifyPassword(password, user.passwordHash)) {
+        return res.status(401).json({ message: "密码错误" });
+      }
+      const token = signToken(user.id);
+      res.json({ token, userId: user.id, user });
+    } catch (err) {
+      console.error("[login] error:", err);
+      res.status(500).json({ message: "登录失败" });
+    }
+  });
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
@@ -195,38 +260,6 @@ export async function registerRoutes(
 
       // Update password in our DB
       await storage.updateUserPassword(resetToken.userId, passwordHash);
-
-      // Sync password hash to Stack Auth neon_auth schema so login still works
-      try {
-        await pool.query(
-          `UPDATE neon_auth."user" SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
-          [passwordHash, resetToken.userId]
-        );
-        console.log("[reset-password] Synced password to neon_auth.user");
-      } catch (syncErr: any) {
-        // Table might be named differently — try common alternatives
-        try {
-          await pool.query(
-            `UPDATE neon_auth."users" SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
-            [passwordHash, resetToken.userId]
-          );
-          console.log("[reset-password] Synced password to neon_auth.users");
-        } catch {
-          console.warn("[reset-password] Could not sync to neon_auth schema — login may use old password. Attempting SDK update...");
-          // Fallback: try the Neon Auth SDK
-          try {
-            const { createAuthClient } = await import("@neondatabase/auth");
-            const neonUrl = process.env.NEON_AUTH_URL || "";
-            if (neonUrl) {
-              const ctx = createAuthClient(neonUrl);
-              // Directly update user — note: this is a best-effort fallback
-              console.log("[reset-password] SDK fallback skipped — updating DB only");
-            }
-          } catch {
-            console.warn("[reset-password] SDK fallback not available");
-          }
-        }
-      }
 
       // Clean up the used token
       await storage.deletePasswordResetTokens(resetToken.userId);
@@ -2615,21 +2648,6 @@ export async function registerRoutes(
   // === Audit Round 2 — Account management, password reset, push,
   // === bill-reminder auto-payment, data export, budgets copy.
   // =================================================================
-
-  // ---- helpers ---------------------------------------------------------
-  function hashPassword(password: string): string {
-    const salt = crypto.randomBytes(16);
-    const hash = crypto.scryptSync(password, salt, 64);
-    return `scrypt:${salt.toString("hex")}:${hash.toString("hex")}`;
-  }
-  function verifyPassword(password: string, stored: string): boolean {
-    const [method, saltHex, hashHex] = stored.split(":");
-    if (method !== "scrypt" || !saltHex || !hashHex) return false;
-    const salt = Buffer.from(saltHex, "hex");
-    const expected = Buffer.from(hashHex, "hex");
-    const actual = crypto.scryptSync(password, salt, expected.length);
-    return crypto.timingSafeEqual(actual, expected);
-  }
 
   // ---- Password change (must be logged in) -----------------------------
   app.post('/api/account/change-password', isAuthenticated, async (req: any, res) => {

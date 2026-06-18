@@ -1,121 +1,80 @@
 /**
- * Neon Auth client — provides auth methods via @neondatabase/auth SDK.
- * 
- * Fetches NEON_AUTH_URL from /api/config at runtime so it works even when
- * VITE_* build-time vars aren't available.
- * Falls back to a simple token-as-userId mode when no URL is configured.
+ * Auth client — calls our own /api/auth/* endpoints instead of Neon Auth SDK.
+ * Token is stored in localStorage and sent as Bearer header.
  */
 
-import { createAuthClient } from "@neondatabase/auth";
+const TOKEN_KEY = "prismx_auth_token";
+const USER_ID_KEY = "prismx_user_id";
 
-let _neonAuthUrl: string | null = null;
-let _neonAuth: ReturnType<typeof createAuthClient> | null = null;
-
-async function getAuthUrl(): Promise<string> {
-  if (_neonAuthUrl !== null) return _neonAuthUrl;
-
-  // Try Vite env first (build-time)
-  const viteUrl = import.meta.env.VITE_NEON_AUTH_URL;
-  if (viteUrl) {
-    _neonAuthUrl = viteUrl;
-    return _neonAuthUrl;
-  }
-
-  // Fallback: fetch from server at runtime
-  try {
-    const res = await fetch("/api/config");
-    if (res.ok) {
-      const data = await res.json();
-      _neonAuthUrl = data.neonAuthUrl || "";
-      return _neonAuthUrl;
-    }
-  } catch {}
-
-  _neonAuthUrl = "";
-  return _neonAuthUrl;
+function saveAuth(token: string, userId: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_ID_KEY, userId);
 }
 
-function getClient(url: string) {
-  if (!_neonAuth) {
-    if (!url) throw new Error("Neon Auth URL not available");
-    _neonAuth = createAuthClient(url);
-  }
-  return _neonAuth;
+function clearAuth() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_ID_KEY);
 }
 
 export async function signIn(email: string, password: string): Promise<{ token: string; userId: string }> {
-  const url = await getAuthUrl();
-  if (!url) {
-    console.warn("[neon-auth] NEON_AUTH_URL not set — using email as userId (dev only)");
-    return { token: email, userId: email };
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || `登录失败 (${res.status})`);
   }
-
-  const client = getClient(url);
-  const result = await client.signIn.email({ email, password });
-  if (result.error) throw new Error(result.error.message);
-
-  const session = await client.getSession();
-  if (!session.data?.session?.token) throw new Error("No session token");
-
-  return { token: session.data.session.token, userId: session.data.user?.id || "" };
+  const data = await res.json();
+  saveAuth(data.token, data.userId);
+  return { token: data.token, userId: data.userId };
 }
 
 export async function signUp(email: string, password: string, name: string): Promise<{ token: string; userId: string }> {
-  const url = await getAuthUrl();
-  if (!url) {
-    console.warn("[neon-auth] NEON_AUTH_URL not set — using email as userId (dev only)");
-    return { token: email, userId: email };
+  const res = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || `注册失败 (${res.status})`);
   }
-
-  const client = getClient(url);
-  const result = await client.signUp.email({ email, password, name });
-  if (result.error) throw new Error(result.error.message);
-
-  const session = await client.getSession();
-  if (!session.data?.session?.token) throw new Error("No session token");
-
-  return { token: session.data.session.token, userId: session.data.user?.id || "" };
+  const data = await res.json();
+  saveAuth(data.token, data.userId);
+  return { token: data.token, userId: data.userId };
 }
 
 export async function signOut(): Promise<void> {
-  const url = await getAuthUrl();
-  if (!url) return;
-  const client = getClient(url);
-  await client.signOut();
+  clearAuth();
 }
 
-export async function getSessionToken(): Promise<string | null> {
-  const url = await getAuthUrl();
-  if (!url) {
-    return localStorage.getItem("devUserId");
-  }
-  try {
-    const client = getClient(url);
-    const session = await client.getSession();
-    return session.data?.session?.token || null;
-  } catch (err) {
-    console.warn("[neon-auth] getSession failed:", err);
-    return null;
-  }
+export function getSessionToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function getSessionUserId(): string | null {
+  return localStorage.getItem(USER_ID_KEY);
 }
 
 export async function forgotPassword(email: string): Promise<void> {
-  const url = await getAuthUrl();
-  if (!url) {
-    console.warn("[neon-auth] NEON_AUTH_URL not set — cannot send password reset email");
-    throw new Error("NEON_AUTH_URL not configured");
-  }
-  const client = getClient(url);
-  const result = await client.forgotPassword.email({ email });
-  if (result.error) throw new Error(result.error.message);
+  const res = await fetch("/api/account/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  // Always return success to not leak user existence
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
-  const url = await getAuthUrl();
-  if (!url) {
-    throw new Error("NEON_AUTH_URL not configured");
+  const res = await fetch("/api/account/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password: newPassword }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || "重置失败");
   }
-  const client = getClient(url);
-  const result = await client.resetPassword.email({ token, password: newPassword });
-  if (result.error) throw new Error(result.error.message);
 }
