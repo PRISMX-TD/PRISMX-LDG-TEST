@@ -22,6 +22,14 @@ const fromName = process.env.SMTP_FROM_NAME || "PRISMX";
 
 const transporter = nodemailer.createTransport(smtpConfig);
 
+// Verify SMTP config at startup
+transporter.verify().then(() => {
+  console.log(`[mailer] SMTP ready — ${smtpConfig.host}:${smtpConfig.port} as ${smtpConfig.auth.user}`);
+}).catch((err: any) => {
+  console.warn(`[mailer] SMTP NOT configured or unreachable: ${err.message}`);
+  console.warn(`[mailer] host=${smtpConfig.host} user=${smtpConfig.auth.user || '(empty)'}`);
+});
+
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   try {
     const info = await transporter.sendMail({
