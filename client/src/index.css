@@ -1,0 +1,950 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+ * Audit r5 — Obsidian theme: B + D + E hybrid
+ *   D (warm soft black)   = 80% of surfaces & spacing
+ *   B (frosted glass)     = 15% reserved for hero elements only
+ *   E (warm amber accent) = 5% reserved for achievements / progress
+ *
+ * Future theme switching: every theme block is keyed by
+ *   [data-theme="<name>"]   — applied to <html>
+ * The "obsidian" theme is the default + fallback below.
+ * ============================================================ */
+
+/* === plumbing kept from previous build (drag-no-select, safe-area, scrollbar) === */
+.no-select, .no-select *, [draggable="true"], [draggable="true"] *,
+.touch-none, .touch-none *,
+[data-testid^="drag-handle-"], [data-testid^="drag-handle-"] *,
+[data-testid^="sortable-card-"], [data-testid^="sortable-card-"] * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+  -webkit-touch-callout: default !important;
+}
+
+/* App-like behaviour on touch devices (incl. installed PWA): a long-press must
+   not pop the browser's "select text"/callout menu. Form fields stay selectable
+   so users can still type, edit and copy inside them. Desktop (fine pointer)
+   keeps normal text selection. */
+@media (pointer: coarse) {
+  * {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+  input, textarea, select, [contenteditable="true"], [contenteditable=""] {
+    -webkit-touch-callout: default !important;
+    -webkit-user-select: text !important;
+    user-select: text !important;
+  }
+}
+
+.safe-area-top    { padding-top: env(safe-area-inset-top, 0px); }
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-area-left   { padding-left: env(safe-area-inset-left, 0px); }
+.safe-area-right  { padding-right: env(safe-area-inset-right, 0px); }
+
+* { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+*::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+
+/* === OBSIDIAN THEME — design tokens === */
+:root,
+[data-theme="obsidian"] {
+  /* Surfaces — slightly darker to make text pop more */
+  --background: 240 8% 6%;         /* #0f0f12 page (a touch deeper)  */
+  --surface-1:  240 7% 10%;        /* #181820 cards                  */
+  --surface-2:  240 6% 14%;        /* #21212a hover / chip           */
+  --surface-3:  240 6% 19%;        /* #2c2c36 tile                   */
+  --foreground: 0 0% 98%;          /* #fafafa near-white primary text */
+  --foreground-muted: 240 6% 72%;  /* #b1b1bd much more legible than before */
+  --foreground-faint: 240 5% 50%;  /* #767680 fine-print only        */
+  --border:     240 7% 22%;        /* #353542 visible separations    */
+  --border-strong: 240 7% 30%;     /* #494957                         */
+
+  --card: var(--background);
+  --card-foreground: var(--foreground);
+  --card-border: var(--border);
+  --popover: var(--surface-1);
+  --popover-foreground: var(--foreground);
+  --popover-border: var(--border);
+
+  /* Primary — softer purple (B+D balance, less neon than before) */
+  --primary: 256 100% 76%;          /* #a18cff — a touch more punchy */
+  --primary-foreground: 240 6% 10%; /* dark text on primary */
+  --primary-soft: 251 50% 60%;      /* fallback inner glow */
+
+  /* Secondary surfaces */
+  --secondary: 240 5% 14%;
+  --secondary-foreground: 240 4% 88%;
+  --muted: 240 6% 14%;
+  --muted-foreground: 240 6% 72%;
+  --accent: 251 100% 77%;
+  --accent-foreground: 240 6% 10%;
+
+  /* Warm accent — only for achievements / progress (E) */
+  --warm: 28 86% 72%;            /* #f5b97a softer than amber */
+  --warm-soft: 28 80% 78%;
+  --warm-strong: 28 95% 60%;
+
+  /* Semantic */
+  --income: 144 32% 64%;         /* #7ec99b muted green */
+  --income-foreground: 0 0% 100%;
+  --expense: 0 64% 76%;          /* #e89a9a soft coral */
+  --expense-foreground: 0 0% 100%;
+  --transfer: 251 100% 77%;      /* same as primary */
+  --transfer-foreground: 0 0% 100%;
+  --success: 144 32% 64%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 0 64% 64%;
+  --destructive-foreground: 0 0% 100%;
+
+  --input: 240 5% 14%;
+  --ring: 251 100% 77%;
+
+  /* Chart palette — coordinated with semantic */
+  --chart-1: 251 100% 77%;       /* purple */
+  --chart-2: 28 86% 72%;         /* warm  */
+  --chart-3: 144 32% 64%;        /* green */
+  --chart-4: 0 64% 76%;          /* coral */
+  --chart-5: 200 60% 72%;        /* blue  */
+
+  /* Sidebar — calmer than before */
+  --sidebar: 240 7% 6%;
+  --sidebar-foreground: 240 4% 88%;
+  --sidebar-border: 240 6% 13%;
+  --sidebar-primary: 251 100% 77%;
+  --sidebar-primary-foreground: 240 6% 10%;
+  --sidebar-accent: 251 35% 22%;
+  --sidebar-accent-foreground: 240 4% 92%;
+  --sidebar-ring: 251 100% 77%;
+
+  /* Type */
+  --font-sans: 'Inter', -apple-system, system-ui, sans-serif;
+  --font-serif: 'Inter', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 0.75rem; /* 12px — softer than before */
+
+  /* Elevate (legacy hover affordance, kept for compatibility) */
+  --button-outline: rgba(255,255,255,.10);
+  --badge-outline: rgba(255,255,255,.06);
+  --elevate-1: rgba(155,138,255,.06);
+  --elevate-2: rgba(155,138,255,.10);
+  --opaque-button-border-intensity: 9;
+
+  /* Fallback border-derive helpers — kept verbatim for shadcn compatibility */
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --sidebar-accent-border:  hsl(var(--sidebar-accent));
+  --sidebar-accent-border:  hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --primary-border:    hsl(var(--primary));
+  --primary-border:    hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --secondary-border:  hsl(var(--secondary));
+  --secondary-border:  hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --muted-border:      hsl(var(--muted));
+  --accent-border:     hsl(var(--accent));
+  --destructive-border:hsl(var(--destructive));
+}
+.dark { /* re-export the obsidian tokens so existing `.dark` consumers keep working */
+  --background: 240 8% 6%; --surface-1: 240 7% 10%; --surface-2: 240 6% 14%; --surface-3: 240 6% 19%;
+  --foreground: 0 0% 98%; --foreground-muted: 240 6% 72%; --foreground-faint: 240 5% 50%;
+  --border: 240 7% 22%; --border-strong: 240 7% 30%;
+  --card: 240 8% 6%; --card-foreground: 0 0% 98%; --card-border: 240 7% 22%;
+  --popover: 240 7% 10%; --popover-foreground: 0 0% 98%; --popover-border: 240 7% 22%;
+  --primary: 251 100% 77%; --primary-foreground: 240 6% 10%;
+  --secondary: 240 5% 14%; --secondary-foreground: 240 4% 88%;
+  --muted: 240 6% 14%; --muted-foreground: 240 6% 72%;
+  --accent: 251 100% 77%; --accent-foreground: 240 6% 10%;
+  --warm: 28 86% 72%; --warm-soft: 28 80% 78%; --warm-strong: 28 95% 60%;
+  --income: 144 32% 64%; --income-foreground: 0 0% 100%;
+  --expense: 0 64% 76%; --expense-foreground: 0 0% 100%;
+  --transfer: 251 100% 77%; --transfer-foreground: 0 0% 100%;
+  --success: 144 32% 64%; --success-foreground: 0 0% 100%;
+  --destructive: 0 64% 64%; --destructive-foreground: 0 0% 100%;
+  --input: 240 5% 14%; --ring: 251 100% 77%;
+  --chart-1: 251 100% 77%; --chart-2: 28 86% 72%; --chart-3: 144 32% 64%; --chart-4: 0 64% 76%; --chart-5: 200 60% 72%;
+  --sidebar: 240 7% 6%; --sidebar-foreground: 240 4% 88%; --sidebar-border: 240 6% 13%;
+  --sidebar-primary: 251 100% 77%; --sidebar-primary-foreground: 240 6% 10%;
+  --sidebar-accent: 251 35% 22%; --sidebar-accent-foreground: 240 4% 92%;
+  --sidebar-ring: 251 100% 77%;
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  overflow: hidden;
+}
+
+/* ============================================================
+ * D — Calm surfaces (default — used on 80% of cards)
+ * ============================================================ */
+/* r7 — glass-card upgraded to warm web3 surface so all legacy usages inherit the new look */
+.glass-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  backdrop-filter: blur(6px);
+  transition: border-color .2s ease, background .2s ease, transform .2s ease;
+}
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.glass-panel {
+  background: hsl(var(--surface-1));
+  border: 1px solid hsl(var(--border));
+}
+
+.glass-modal {
+  background: hsl(var(--surface-1));
+  border: 1px solid hsl(var(--border-strong));
+  box-shadow: 0 24px 60px -20px rgba(0,0,0,0.7);
+}
+
+/* ============================================================
+ * B — Hero glass (used SPARINGLY: only on 1 hero card per page)
+ *   Total assets, savings hero, etc. NOT for ordinary cards.
+ *   Has performance fallback for devices that can't backdrop-blur.
+ * ============================================================ */
+.hero-glass {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    rgba(155,138,255,0.10) 0%,
+    rgba(155,138,255,0.025) 60%,
+    rgba(255,255,255,0.02) 100%
+  );
+  border: 1px solid rgba(155,138,255,0.22);
+  border-radius: 20px;
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  overflow: hidden;
+}
+.hero-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 180px 140px at 20% -10%,
+    rgba(155,138,255,0.45) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+  opacity: 0.65;
+}
+.hero-glass > * { position: relative; }
+/* Fallback: low-end / data-saver / disabled JS — fall back to plain card */
+@supports not (backdrop-filter: blur(1px)) {
+  .hero-glass { background: hsl(var(--surface-2)); }
+}
+.no-glass .hero-glass {
+  background: hsl(var(--surface-2));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.no-glass .hero-glass::before { display: none; }
+
+/* ============================================================
+ * E — Warm accent (achievements, progress, "you did well")
+ * ============================================================ */
+.text-warm { color: hsl(var(--warm)); }
+.bg-warm-soft { background: hsl(var(--warm) / 0.12); }
+
+.streak-chip,
+.win-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: hsl(var(--warm) / 0.15);
+  color: hsl(var(--warm));
+  border: 1px solid hsl(var(--warm) / 0.25);
+}
+
+/* Purple → amber gradient progress bar — the signature visual */
+.progress-gradient {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: hsl(var(--surface-3));
+  overflow: hidden;
+}
+.progress-gradient > .fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--warm)));
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+.progress-gradient.over .fill {
+  background: linear-gradient(90deg, hsl(var(--warm)), hsl(var(--destructive)));
+}
+
+/* Soft purple chips (e.g. category icons in transaction rows) */
+.icon-chip {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: hsl(var(--surface-3));
+  color: hsl(var(--primary));
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.icon-chip.warm { color: hsl(var(--warm)); background: hsl(var(--warm) / 0.10); }
+
+/* ============================================================
+ * Compatibility shims — old class names redefined to new visuals
+ *   so legacy components auto-upgrade without code changes.
+ * ============================================================ */
+.aurora-bg {
+  background:
+    radial-gradient(ellipse 700px 400px at 50% -10%, hsl(var(--primary) / 0.10), transparent 70%),
+    hsl(var(--background));
+}
+.gradient-text {
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--warm)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.purple-glow      { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.12); }
+.purple-glow-sm   { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.08); }
+.stats-card {
+  background: hsl(var(--surface-1));
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+}
+
+/* Was a glowy radial — now a calm transparent layer (no-op visually) */
+.ambient-noise, .ambient-glow, .ambient-glow-2 { display: none; }
+
+/* Wallet "credit card" hero — keep distinct but match new palette */
+.credit-card-bg {
+  background:
+    radial-gradient(ellipse 240px 160px at 100% 0%, rgba(155,138,255,0.22), transparent 60%),
+    linear-gradient(135deg, hsl(var(--surface-2)), hsl(var(--surface-1)));
+  border: 1px solid hsl(var(--border-strong));
+}
+.holo-sticker {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--warm)));
+  opacity: 0.7;
+  filter: blur(14px);
+}
+
+/* Sidebar tweaks for new theme */
+[data-slot="sidebar"] {
+  background: hsl(var(--sidebar));
+  border-right: 1px solid hsl(var(--sidebar-border));
+}
+[data-slot="sidebar-menu-button"] {
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  color: hsl(var(--sidebar-foreground) / 0.78);
+}
+[data-slot="sidebar-menu-button"]:hover {
+  color: hsl(var(--sidebar-foreground));
+  background: hsl(var(--primary) / 0.08);
+}
+[data-slot="sidebar-menu-button"][data-active="true"] {
+  background: linear-gradient(90deg, hsl(var(--primary) / 0.18), transparent 70%);
+  color: hsl(var(--sidebar-foreground));
+  border-left: 2px solid hsl(var(--primary));
+  border-radius: 0;
+}
+
+/* Legacy alias still used in some files */
+.text-neon-purple { color: hsl(var(--primary)); }
+.text-neon-glow   { color: hsl(var(--primary)); }
+.bg-neon-purple   { background-color: hsl(var(--primary)); }
+.bg-neon-dark     { background-color: hsl(var(--primary) / 0.85); }
+.border-neon-purple { border-color: hsl(var(--primary)); }
+.shadow-neon      { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.20); }
+
+/* Hide-scrollbar utility kept */
+.custom-scroll { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+.custom-scroll::-webkit-scrollbar { display: none !important; width: 0 !important; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ============================================================
+ * Elevate system — preserved verbatim for shadcn components
+ * ============================================================ */
+@layer utilities {
+  input[type="search"]::-webkit-search-cancel-button { @apply hidden; }
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+  .no-default-hover-elevate {}
+  .no-default-active-elevate {}
+  .toggle-elevate::before, .toggle-elevate-2::before {
+    content: ""; pointer-events: none; position: absolute; inset: 0;
+    border-radius: inherit; z-index: -1;
+  }
+  .toggle-elevate.toggle-elevated::before { background-color: var(--elevate-2); }
+  .border.toggle-elevate::before { inset: -1px; }
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate),
+  .hover-elevate-2:not(.no-default-hover-elevate),
+  .active-elevate-2:not(.no-default-active-elevate) { position: relative; z-index: 0; }
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after,
+  .hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:not(.no-default-active-elevate)::after {
+    content: ""; pointer-events: none; position: absolute; inset: 0;
+    border-radius: inherit; z-index: 999;
+  }
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after { background-color: var(--elevate-1); }
+  .hover-elevate-2:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after { background-color: var(--elevate-2); }
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate-2:not(.no-active-interaction-elevate)::after { inset: -1px; }
+}
+
+/* ============================================================
+ * Typography rhythm (round 5 — restructure)
+ *   Numbers are the protagonist on a finance app. We give the
+ *   user a clear hierarchy via size + weight + color combined.
+ * ============================================================ */
+.t-display {
+  font-family: var(--font-mono);
+  font-size: clamp(40px, 7vw, 56px);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+.t-hero {
+  font-family: var(--font-mono);
+  font-size: clamp(28px, 5vw, 36px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.t-figure {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.t-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--foreground-muted));
+}
+.t-section { font-size: 16px; font-weight: 500; }
+.t-caption { font-size: 11px; color: hsl(var(--foreground-muted)); }
+
+/* Surface tiers — semantic shorthand for the new bento bigger blocks */
+.tier-1 { background: hsl(var(--surface-1)); border: 1px solid hsl(var(--border)); border-radius: 16px; }
+.tier-2 { background: hsl(var(--surface-2)); border: 1px solid hsl(var(--border)); border-radius: 14px; }
+.tier-3 { background: hsl(var(--surface-3)); border-radius: 12px; }
+
+/* ============================================================
+ * Round 6 — WARM WEB3 DIRECTION
+ * Reference: Phantom / Backpack / Jupiter / Plutus.
+ * Slightly bluer-black base + intense purple light source + warm
+ * orange accents + heavy use of soft pill geometry.
+ * Old utilities still resolve; new ones live in this block.
+ * ============================================================ */
+
+:root,
+[data-theme="obsidian"] {
+  /* Even deeper, slightly blue-tinted base — feels expensive */
+  --background:    248 35% 4%;   /* #0a0814 */
+  --surface-1:     250 22% 9%;   /* #15101f */
+  --surface-2:     248 18% 13%;  /* #1c1828 */
+  --surface-3:     248 16% 17%;  /* #25212f */
+
+  /* Brighter primary glow + analogous chain */
+  --primary:       259 100% 76%; /* #a78bfa */
+  --primary-deep:  263 87% 64%;  /* #8b5cf6 */
+  --primary-glow:  264 90% 58%;  /* #7c3aed */
+
+  --accent-pink:   330 86% 65%;  /* #ec4899 */
+  --accent-blue:   244 89% 67%;  /* #6366f1 */
+  --warm:           32 88% 70%;  /* #f5b97a */
+  --warm-deep:      32 93% 60%;
+}
+
+/* Mesh background — drop in on any page root */
+.mesh-bg {
+  position: relative;
+  background-color: hsl(var(--background));
+}
+.mesh-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 20% 0%,  hsl(var(--accent-blue) / 0.20) 0%, transparent 40%),
+    radial-gradient(circle at 85% 20%, hsl(var(--primary) / 0.18)    0%, transparent 38%),
+    radial-gradient(circle at 50% 95%, hsl(var(--accent-pink) / 0.10) 0%, transparent 45%);
+}
+.mesh-bg > * { position: relative; z-index: 1; }
+
+/* Star sprinkle — for inside hero cards */
+.starfield {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* PILL BUTTONS — the signature Web3 wallet button */
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: transform .15s ease, box-shadow .2s ease, filter .15s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-pill-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-deep)) 55%, hsl(var(--primary-glow)) 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 10px 30px -10px hsl(var(--primary-deep) / 0.7);
+}
+.btn-pill-primary:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.btn-pill-primary:active { transform: translateY(0); filter: brightness(.96); }
+.btn-pill-ghost {
+  background: rgba(255,255,255,0.05);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.btn-pill-ghost:hover  { background: rgba(255,255,255,0.08); }
+
+/* Round outlined icon button — Send / Withdraw / etc */
+.btn-round {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: white;
+  transition: all .15s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-round:hover  { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.22); }
+.btn-round:active { transform: scale(.95); }
+
+/* HERO card — the Phantom/Plutus signature: deep blue + purple glow + star/wave inside */
+.hero-card {
+  position: relative;
+  background:
+    linear-gradient(135deg,
+      hsl(var(--accent-blue) / 0.42) 0%,
+      hsl(var(--primary-deep) / 0.22) 50%,
+      hsl(var(--background) / 0.6) 100%);
+  border: 1px solid hsl(var(--primary) / 0.30);
+  border-radius: 24px;
+  padding: 22px 22px 24px;
+  box-shadow:
+    0 20px 60px -20px hsl(var(--primary-deep) / 0.55),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+  overflow: hidden;
+}
+.hero-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.5), transparent);
+}
+
+/* Brand-color circular asset badge */
+.brand-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* Asset card — used for wallet grid + token grid + asset list */
+.asset-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 18px;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .2s ease, background .2s ease;
+}
+.asset-card:hover {
+  border-color: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.05);
+}
+
+/* Dashed "add new" card */
+.asset-card-add {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.10), rgba(255,255,255,0.02));
+  border: 1px dashed hsl(var(--primary) / 0.35);
+  border-radius: 18px;
+  padding: 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.asset-card-add:hover {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.18), rgba(255,255,255,0.04));
+  border-color: hsl(var(--primary) / 0.6);
+}
+
+/* Pill tabs (今天 / 本周 / 本月) */
+.pill-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pill-tabs::-webkit-scrollbar { display: none; }
+.pill-tab {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: hsl(var(--foreground-muted));
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.pill-tab:hover { background: rgba(255,255,255,0.07); color: hsl(var(--foreground)); }
+.pill-tab.active {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.32), hsl(var(--primary-deep) / 0.18));
+  border-color: hsl(var(--primary) / 0.45);
+  color: white;
+  font-weight: 500;
+}
+
+/* Streak banner — for "12-day streak / +12 XP" moments */
+.streak-banner {
+  background: linear-gradient(135deg, hsl(var(--warm) / 0.10), hsl(var(--primary) / 0.06));
+  border: 1px solid hsl(var(--warm) / 0.25);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.xp-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: hsl(var(--warm) / 0.20);
+  border: 1px solid hsl(var(--warm) / 0.35);
+  color: hsl(var(--warm));
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Avatar with gradient ring + green status dot */
+.avatar-ring {
+  position: relative;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  padding: 2px;
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent-pink)));
+}
+.avatar-ring > .inner {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: hsl(var(--background));
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.avatar-ring > .status-dot {
+  position: absolute; bottom: 0; right: 0;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: hsl(var(--income));
+  border: 2px solid hsl(var(--background));
+}
+
+/* Numeric gradient text — for the biggest hero number */
+.num-gradient {
+  background: linear-gradient(135deg, #ffffff 0%, hsl(var(--primary)) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Live ticker chip */
+.live-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: hsl(var(--income) / 0.12);
+  color: hsl(var(--income));
+  border: 1px solid hsl(var(--income) / 0.25);
+  font-size: 10px;
+  font-weight: 500;
+}
+.live-chip > .dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: hsl(var(--income));
+}
+
+/* Sparkline path-stroke + fill helpers */
+.spark-up   { stroke: hsl(var(--income)); }
+.spark-down { stroke: hsl(var(--expense)); }
+.spark-flat { stroke: hsl(var(--primary)); }
+
+/* Section header (label + see all) */
+.section-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.section-head h3 { font-size: 15px; font-weight: 600; margin: 0; color: hsl(var(--foreground)); }
+.section-head a {
+  font-size: 11px;
+  color: hsl(var(--primary));
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* Activity row card (recent transactions, etc.) */
+.activity-card {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 14px;
+  padding: 4px;
+}
+.activity-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 11px;
+  border-radius: 10px;
+}
+.activity-row.is-newest {
+  background: linear-gradient(90deg, hsl(var(--primary) / 0.06), transparent);
+  border: 1px solid hsl(var(--primary) / 0.12);
+}
+
+
+/* ============================================================
+ * Global shadcn overrides — make every existing Button / Card /
+ * Dialog inherit the warm-web3 visual language without rewriting
+ * every page. This is the muscle behind "100% redesign".
+ * ============================================================ */
+
+/* Primary button (default variant) → pill purple gradient */
+button[data-slot="button"][class*="bg-primary"]:not([class*="rounded-md"]):not([class*="ghost"]),
+button.bg-primary {
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-deep)) 55%, hsl(var(--primary-glow)) 100%) !important;
+  box-shadow: 0 8px 24px -8px hsl(var(--primary-deep) / 0.6) !important;
+  font-weight: 600 !important;
+  transition: filter .15s ease, transform .15s ease, box-shadow .2s ease !important;
+}
+button[data-slot="button"][class*="bg-primary"]:hover,
+button.bg-primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
+button[data-slot="button"][class*="bg-primary"]:active,
+button.bg-primary:active { filter: brightness(0.95); transform: translateY(0); }
+
+/* Outline variant → soft ghost pill */
+button[data-slot="button"][class*="border-input"],
+button[data-slot="button"][data-variant="outline"] {
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: hsl(var(--border)) !important;
+  transition: background .15s ease, border-color .15s ease;
+}
+button[data-slot="button"][class*="border-input"]:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: hsl(var(--border-strong)) !important;
+}
+
+/* Dialog content — use new mesh + glass-modal feel */
+[role="dialog"][data-state="open"],
+[data-slot="dialog-content"] {
+  background:
+    radial-gradient(circle at 20% 0%, hsl(var(--primary) / 0.10) 0%, transparent 35%),
+    radial-gradient(circle at 90% 0%, hsl(var(--accent-pink) / 0.08) 0%, transparent 40%),
+    hsl(var(--surface-1)) !important;
+  border: 1px solid hsl(var(--border-strong)) !important;
+  border-radius: 22px !important;
+  box-shadow:
+    0 32px 72px -28px rgba(0, 0, 0, 0.85),
+    0 0 0 1px hsl(var(--primary) / 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Dialog inner buttons in footer */
+[data-slot="dialog-footer"] button[type="submit"],
+[role="dialog"] form button[type="submit"] {
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-deep)) 55%, hsl(var(--primary-glow)) 100%) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+  box-shadow: 0 8px 24px -8px hsl(var(--primary-deep) / 0.5) !important;
+}
+
+/* Card surfaces — glass-card class already updated. Make plain Card same */
+[data-slot="card"] {
+  background: hsl(var(--surface-1)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 16px !important;
+}
+
+/* Input fields — pill-ish rounded with subtle border */
+input[data-slot="input"],
+textarea[data-slot="textarea"],
+[data-slot="select-trigger"] {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 12px !important;
+  transition: border-color .15s ease, background .15s ease;
+}
+input[data-slot="input"]:focus,
+textarea[data-slot="textarea"]:focus,
+[data-slot="select-trigger"]:focus {
+  border-color: hsl(var(--primary) / 0.5) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Page root divs use bg-background -> apply mesh by default */
+.bg-background:not(.mesh-bg):not(.no-mesh)::before { content: none; }
+body.has-mesh::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 20% 0%, hsl(var(--accent-blue) / 0.18) 0%, transparent 40%),
+    radial-gradient(circle at 85% 20%, hsl(var(--primary) / 0.16) 0%, transparent 38%),
+    radial-gradient(circle at 50% 95%, hsl(var(--accent-pink) / 0.08) 0%, transparent 45%);
+}
+
+/* Replace shadcn Tabs underline with pill */
+[data-slot="tabs-list"] {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 999px !important;
+  padding: 4px !important;
+  gap: 4px !important;
+}
+[data-slot="tabs-trigger"] {
+  border-radius: 999px !important;
+  font-weight: 500 !important;
+  transition: all .15s ease;
+}
+[data-slot="tabs-trigger"][data-state="active"] {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.30), hsl(var(--primary-deep) / 0.18)) !important;
+  color: white !important;
+  border: 1px solid hsl(var(--primary) / 0.40) !important;
+}
+
+/* Progress component (shadcn) — fall back to our gradient */
+[data-slot="progress"] {
+  background: hsl(var(--surface-3)) !important;
+  border-radius: 999px !important;
+  overflow: hidden;
+}
+[data-slot="progress-indicator"] {
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--warm))) !important;
+}
+
+/* Toast container — pill rounded + glass */
+[data-slot="toast"], [role="status"][data-state] {
+  border-radius: 16px !important;
+  background: hsl(var(--surface-1)) !important;
+  border: 1px solid hsl(var(--border-strong)) !important;
+}
+
+/* Dropdown menu */
+[data-slot="dropdown-menu-content"], [role="menu"] {
+  background: hsl(var(--surface-1)) !important;
+  border: 1px solid hsl(var(--border-strong)) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 24px 60px -20px rgba(0,0,0,0.7) !important;
+}
+[data-slot="dropdown-menu-item"], [role="menuitem"] {
+  border-radius: 8px !important;
+  transition: background .15s ease;
+}
+[data-slot="dropdown-menu-item"]:hover, [role="menuitem"]:hover {
+  background: rgba(167, 139, 250, 0.10) !important;
+}
+
+/* Switch — primary color thumb */
+[data-slot="switch"][data-state="checked"] {
+  background: hsl(var(--primary)) !important;
+}
+
+/* Checkbox */
+[data-slot="checkbox"][data-state="checked"] {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+/* Avatar in shadcn — round with subtle ring */
+[data-slot="avatar"] {
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+/* ============================================================
+ * r7 — APP-LEVEL UNIFIED MESH BACKGROUND
+ * Single source of truth for the page tint. Sidebar + main pages
+ * are transparent overlays, so no seam between sidebar and content.
+ * ============================================================ */
+.r7-app-root {
+  position: relative;
+  background: #0a0612;
+}
+.r7-app-root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 600px at 10% -10%, rgba(167, 139, 250, 0.30), transparent 60%),
+    radial-gradient(700px 480px at 90% 20%, rgba(245, 158, 11, 0.18), transparent 60%),
+    radial-gradient(800px 520px at 60% 110%, rgba(236, 72, 153, 0.18), transparent 60%),
+    #0a0612;
+}
+/* mesh ::before sits behind via DOM order; do NOT add a > * z-index rule —
+   it would force both <SimpleSidebar> (fixed, z-[200]) and the content shifter div to
+   the same stacking level, which caused the shifter to cover the sidebar (no clicks). */
+
