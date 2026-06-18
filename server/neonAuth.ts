@@ -20,7 +20,7 @@ async function verifyNeonToken(token: string): Promise<{ sub: string } | null> {
 
   try {
     // Fetch JWKS from Neon Auth
-    const jwksUrl = `${NEON_AUTH_URL}/.well-known/jwks`;
+    const jwksUrl = `${NEON_AUTH_URL}/.well-known/jwks.json`;
     const jwksRes = await fetch(jwksUrl, { signal: AbortSignal.timeout(5000) });
     if (!jwksRes.ok) {
       console.error(`[neon-auth] Failed to fetch JWKS: ${jwksRes.status}`);
