@@ -254,9 +254,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "重置链接无效或已过期，请重新申请" });
       }
 
-      // Hash the new password
-      const bcrypt = require("bcryptjs");
-      const passwordHash = await bcrypt.hash(password, 12);
+      // Hash the new password (must match verifyPassword in login — uses scrypt)
+      const passwordHash = hashPassword(password);
 
       // Update password in our DB
       await storage.updateUserPassword(resetToken.userId, passwordHash);
