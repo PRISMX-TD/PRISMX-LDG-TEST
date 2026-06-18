@@ -60,8 +60,15 @@ const transporter = nodemailer.createTransport(smtpConfig);
 transporter.verify().then(() => {
   console.log(`[mailer:smtp] Ready — ${smtpConfig.host}:${smtpConfig.port}`);
 }).catch((err: any) => {
-  console.warn(`[mailer:smtp] Unavailable: ${err.message} (will use API fallback)`);
+  console.warn(`[mailer:smtp] Unavailable: ${err.message}`);
 });
+
+// Verify API key at startup
+if (BREVO_API_KEY) {
+  console.log(`[mailer:api] Key present (${BREVO_API_KEY.slice(0, 10)}...) — ready`);
+} else {
+  console.warn(`[mailer:api] BREVO_API_KEY not set. Add it to Railway env vars. SMTP_PASS value won't work here — needs a v3 API key from https://app.brevo.com/settings/keys/api`);
+}
 
 async function sendViaSmtp(to: string, subject: string, html: string): Promise<boolean> {
   try {
