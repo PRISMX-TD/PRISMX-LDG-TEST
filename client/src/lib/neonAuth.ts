@@ -37,7 +37,8 @@ async function getAuthUrl(): Promise<string> {
 
 function getClient(url: string) {
   if (!_neonAuth) {
-    _neonAuth = createAuthClient(url || "https://localhost:5005");
+    if (!url) throw new Error("Neon Auth URL not available");
+    _neonAuth = createAuthClient(url);
   }
   return _neonAuth;
 }
@@ -88,9 +89,14 @@ export async function getSessionToken(): Promise<string | null> {
   if (!url) {
     return localStorage.getItem("devUserId");
   }
-  const client = getClient(url);
-  const session = await client.getSession();
-  return session.data?.session?.token || null;
+  try {
+    const client = getClient(url);
+    const session = await client.getSession();
+    return session.data?.session?.token || null;
+  } catch (err) {
+    console.warn("[neon-auth] getSession failed:", err);
+    return null;
+  }
 }
 
 export async function forgotPassword(email: string): Promise<void> {
