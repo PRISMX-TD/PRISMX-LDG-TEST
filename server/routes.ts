@@ -2564,7 +2564,7 @@ export async function registerRoutes(
         });
         const origin = (req.headers.origin as string) || `${req.protocol}://${req.headers.host}`;
         const url = `${origin}/reset-password?token=${raw}`;
-        const sent = await sendEmail({
+        const result = await sendEmail({
           to: email,
           subject: "PRISMX 重置密码链接",
           text: `点击以下链接重置密码（1 小时内有效）：
@@ -2573,8 +2573,8 @@ ${url}
 
 如果你没有请求重置，可忽略此邮件。`,
         });
-        // If email was not actually sent, return the link in the response
-        return res.json({ ok: true, ...(sent ? {} : { resetUrl: url }) });
+        // If email was not actually sent, return the link in the response with error info
+        return res.json({ ok: true, ...(result.sent ? {} : { resetUrl: url, emailError: result.error }) });
       }
       res.json({ ok: true });
     } catch (err) {

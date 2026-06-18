@@ -13,6 +13,7 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [resetUrl, setResetUrl] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,6 +23,7 @@ export default function ForgotPassword() {
       const res = await apiRequest("POST", "/api/account/forgot-password", { email: email.trim() });
       const data = await res.json();
       if (data.resetUrl) setResetUrl(data.resetUrl);
+      if (data.emailError) setEmailError(data.emailError);
       setSent(true);
     }
     catch { setSent(true); }
@@ -44,7 +46,8 @@ export default function ForgotPassword() {
                 <p className="text-foreground-muted text-[12px]">检查垃圾邮件文件夹或稍后再试。</p>
                 {resetUrl && (
                   <div className="rounded-xl p-3 bg-amber-400/10 border border-amber-400/20">
-                    <p className="text-[11px] text-amber-300 mb-1">开发模式 - 邮件未发送，点击下方链接重置：</p>
+                    <p className="text-[11px] text-amber-300 mb-1">邮件未发送，点击下方链接重置：</p>
+                    {emailError && <p className="text-[10px] text-rose-400 mb-1">错误: {emailError}</p>}
                     <a href={resetUrl} className="text-[12px] text-primary underline break-all">{resetUrl}</a>
                   </div>
                 )}

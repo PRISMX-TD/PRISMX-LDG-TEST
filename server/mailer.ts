@@ -18,9 +18,9 @@ type Email = {
   html?: string;
 };
 
-async function sendViaResend(msg: Email): Promise<boolean> {
+async function sendViaResend(msg: Email): Promise<{ sent: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return false;
+  if (!apiKey) return { sent: false, error: "RESEND_API_KEY not set" };
   try {
     const resp = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -37,19 +37,20 @@ async function sendViaResend(msg: Email): Promise<boolean> {
       }),
     });
     if (!resp.ok) {
-      console.warn(`[mailer] Resend returned ${resp.status}: ${await resp.text()}`);
-      return false;
+      const errText = await resp.text();
+      console.warn(`[mailer] Resend returned ${resp.status}: ${errText}`);
+      return { sent: false, error: `HTTP ${resp.status}: ${errText}` };
     }
-    return true;
-  } catch (err) {
+    return { sent: true };
+  } catch (err: any) {
     console.warn("[mailer] Resend send failed:", err);
-    return false;
+    return { sent: false, error: err?.message || String(err) };
   }
 }
 
-async function sendViaSmtp(msg: Email): Promise<boolean> {
+async function sendViaSmtp(msg: Email): Promise<{ sent: boolean; error?: string }> {
   const host = process.env.SMTP_HOST;
-  if (!host) return false;
+  if (!host) return { sent: false, error: "SMTP_HOST not set" };
   try {
     // Lazy require so a missing nodemailer install doesn't break the build.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -67,17 +68,21 @@ async function sendViaSmtp(msg: Email): Promise<boolean> {
       text: msg.text,
       html: msg.html || msg.text,
     });
-    return true;
-  } catch (err) {
+    return { sent: true };
+  } catch (err: any) {
     console.warn("[mailer] SMTP send failed:", err);
-    return false;
+    return { sent: false, error: err?.message || String(err) };
   }
 }
 
-export async function sendEmail(msg: Email): Promise<boolean> {
+export async function sendEmail(msg: Email): Promise<{ sent: boolean; error?: string }> {
   // Try Resend first (simplest), then SMTP, then fall back to logging.
-  if (await sendViaResend(msg)) return true;
-  if (await sendViaSmtp(msg)) return true;
+  const resendResult = await sendViaResend(msg);
+  if (resendResult.sent) return { sent: true };
+  if (resendResult.error) return { sent: false, error: `Resend: ${resendResult.error}` };
+  const smtpResult = await sendViaSmtp(msg);
+  if (smtpResult.sent) return { sent: true };
+  if (smtpResult.error) return { sent: false, error: `SMTP: ${smtpResult.error}` };
   console.warn(`[mailer] no provider configured — logging instead:\n  to: ${msg.to}\n  subject: ${msg.subject}\n  body: ${msg.text}`);
-  return false;
+  return { sent: false, error: "No email provider configured (set RESEND_API_KEY or SMTP_HOST)" };
 }
