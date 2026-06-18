@@ -71,5 +71,5 @@ export function isAuthenticated(req: any, res: Response, next: NextFunction) {
 }
 
 export function setupAuth(app: any) {
-  console.log("[neon-auth] Neon Auth v2 JWT: " + (NEON_AUTH_URL ? NEON_AUTH_URL : "DEV-TOKEN-MODE"));
+  console.log("[neon-auth] v3 JWT auth: " + (NEON_AUTH_URL ? NEON_AUTH_URL : "DEV-TOKEN-MODE"));
 }
