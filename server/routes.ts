@@ -101,6 +101,11 @@ export async function registerRoutes(
     next();
   });
 
+  // Expose Neon Auth URL to frontend (Vite env vars may not be available at build time)
+  app.get('/api/config', (_req, res) => {
+    res.json({ neonAuthUrl: process.env.NEON_AUTH_URL || "" });
+  });
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
