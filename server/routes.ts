@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, TransactionFilters } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./neonAuth";
 import { 
   insertTransactionSchema, 
   supportedCurrencies,
@@ -20,7 +20,6 @@ import crypto from "crypto";
 import { db } from "./db";
 import {
   users as usersTable,
-  passwordResetTokens,
   pushSubscriptions,
   monthlyBalanceSnapshots,
   savingsGoals,
@@ -39,7 +38,6 @@ import {
   userWalletPreferences,
 } from "@shared/schema";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
-import { sendEmail } from "./mailer";
 import { getPublicKey as getPushPublicKey } from "./push";
 
 const supportedCurrencyCodes = supportedCurrencies.map(c => c.code);
@@ -108,7 +106,8 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       let user = await storage.getUser(userId);
-      if (!user && process.env.DISABLE_AUTH === 'true') {
+      if (!user) {
+        // Auto-create user in our DB (Neon Auth already created the auth record)
         user = await storage.upsertUser({ id: userId });
       }
       res.json(user);
@@ -2513,9 +2512,6 @@ export async function registerRoutes(
     const actual = crypto.scryptSync(password, salt, expected.length);
     return crypto.timingSafeEqual(actual, expected);
   }
-  function tokenHash(raw: string): string {
-    return crypto.createHash("sha256").update(raw).digest("hex");
-  }
 
   // ---- Password change (must be logged in) -----------------------------
   app.post('/api/account/change-password', isAuthenticated, async (req: any, res) => {
@@ -2542,73 +2538,6 @@ export async function registerRoutes(
     } catch (err) {
       console.error("change-password error:", err);
       res.status(500).json({ message: "修改密码失败" });
-    }
-  });
-
-  // ---- Forgot password: request a reset link ---------------------------
-  app.post('/api/account/forgot-password', async (req: any, res) => {
-    try {
-      const { email } = req.body || {};
-      if (!email || typeof email !== "string") {
-        return res.status(400).json({ message: "邮箱必填" });
-      }
-      const [u] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-      // Always return 200 — don't leak whether the email exists.
-      if (u && u.passwordHash) {
-        const raw = crypto.randomBytes(32).toString("hex");
-        const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-        await db.insert(passwordResetTokens).values({
-          userId: u.id,
-          tokenHash: tokenHash(raw),
-          expiresAt: expires,
-        });
-        const origin = (req.headers.origin as string) || `${req.protocol}://${req.headers.host}`;
-        const url = `${origin}/reset-password?token=${raw}`;
-        // Fire-and-forget email send (best effort)
-        sendEmail({
-          to: email,
-          subject: "PRISMX 重置密码链接",
-          text: `点击以下链接重置密码（1 小时内有效）：
-
-${url}
-
-如果你没有请求重置，可忽略此邮件。`,
-        }).catch(() => {});
-        // Always return the reset URL in the response
-        return res.json({ ok: true, resetUrl: url });
-      }
-      res.json({ ok: true });
-    } catch (err) {
-      console.error("forgot-password error:", err);
-      res.status(500).json({ message: "请求失败" });
-    }
-  });
-
-  // ---- Reset password using token --------------------------------------
-  app.post('/api/account/reset-password', async (req: any, res) => {
-    try {
-      const { token, newPassword } = req.body || {};
-      if (!token || !newPassword || typeof token !== "string" || typeof newPassword !== "string") {
-        return res.status(400).json({ message: "token 与 newPassword 必填" });
-      }
-      if (newPassword.length < 8 || newPassword.length > 200) {
-        return res.status(400).json({ message: "新密码必须为 8-200 位" });
-      }
-      const h = tokenHash(token);
-      const [row] = await db.select().from(passwordResetTokens).where(eq(passwordResetTokens.tokenHash, h));
-      if (!row || row.usedAt || new Date(row.expiresAt) < new Date()) {
-        return res.status(400).json({ message: "重置链接无效或已过期" });
-      }
-      await db.update(usersTable)
-        .set({ passwordHash: hashPassword(newPassword), updatedAt: new Date() })
-        .where(eq(usersTable.id, row.userId));
-      await db.update(passwordResetTokens)
-        .set({ usedAt: new Date() })
-        .where(eq(passwordResetTokens.id, row.id));
-      res.json({ ok: true });
-    } catch (err) {
-      console.error("reset-password error:", err);
-      res.status(500).json({ message: "重置失败" });
     }
   });
 

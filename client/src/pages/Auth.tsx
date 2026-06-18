@@ -2,7 +2,7 @@ import { useRef, useState, startTransition } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuthActions } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ export default function Auth() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { login, signup } = useAuthActions();
 
   const initialTab = (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "register") ? "register" : "login";
   const [tab, setTab] = useState<"login" | "register">(initialTab as any);
@@ -45,12 +46,12 @@ export default function Auth() {
     if (!loginPassword) { setLoginErr("请输入密码"); return; }
     try {
       setLoading(true);
-      await apiRequest("POST", "/api/login", { email: loginEmail, password: loginPassword });
+      await login(loginEmail, loginPassword);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       startTransition(() => setLocation("/dashboard"));
     } catch (e: any) {
       const msg = e?.message || "登录失败";
-      setLoginErr(msg.includes("401") ? "邮箱或密码错误" : msg);
+      setLoginErr(msg.includes("401") || msg.includes("invalid") ? "邮箱或密码错误" : msg);
     } finally { setLoading(false); }
   }
 
@@ -62,9 +63,11 @@ export default function Auth() {
     if (regPassword !== regPasswordConfirm) { setRegErr("两次输入的密码不一致"); return; }
     try {
       setLoading(true);
-      await apiRequest("POST", "/api/register", { email: regEmail, password: regPassword, firstName, lastName });
+      const name = [firstName, lastName].filter(Boolean).join(" ") || regEmail.split("@")[0];
+      await signup(regEmail, regPassword, name);
+      // Auto-login after registration
       try {
-        await apiRequest("POST", "/api/login", { email: regEmail, password: regPassword });
+        await login(regEmail, regPassword);
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         setSuccessOpen(true);
         setTimeout(() => { setSuccessOpen(false); startTransition(() => setLocation("/dashboard")); }, 1200);
@@ -128,7 +131,7 @@ export default function Auth() {
           </Dialog>
           <Dialog open={errorOpen} onOpenChange={setErrorOpen}>
             <DialogContent className="sm:max-w-[420px]">
-              <DialogHeader><DialogTitle>注册失败</DialogTitle><DialogDescription>{errorMsg.includes("409") || errorMsg.includes("already registered") ? "该邮箱已注册，请直接登录" : errorMsg}</DialogDescription></DialogHeader>
+              <DialogHeader><DialogTitle>注册失败</DialogTitle><DialogDescription>{errorMsg.includes("409") || errorMsg.includes("already registered") || errorMsg.includes("already exists") ? "该邮箱已注册，请直接登录" : errorMsg}</DialogDescription></DialogHeader>
             </DialogContent>
           </Dialog>
         </div>

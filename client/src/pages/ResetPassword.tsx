@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { resetPassword } from "@/lib/neonAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Sparkles } from "lucide-react";
+
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -29,10 +30,11 @@ export default function ResetPassword() {
     if (newPassword !== confirmPassword) { toast({ title: "两次输入不一致", variant: "destructive" }); return; }
     setLoading(true);
     try {
-      const r = await apiRequest("POST", "/api/account/reset-password", { token, newPassword });
-      if (r.ok) { setSuccess(true); setTimeout(() => setLocation("/auth"), 1500); }
+      await resetPassword(token, newPassword);
+      setSuccess(true);
+      setTimeout(() => setLocation("/auth"), 1500);
     } catch (e: any) {
-      toast({ title: "重置失败", description: e.message, variant: "destructive" });
+      toast({ title: "重置失败", description: e.message || "请重试", variant: "destructive" });
     } finally { setLoading(false); }
   }
 

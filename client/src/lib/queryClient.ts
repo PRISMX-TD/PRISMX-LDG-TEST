@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getSessionToken } from "./neonAuth";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -8,7 +9,10 @@ async function throwIfResNotOk(res: Response) {
 }
 
 function getFallbackHeaders(): Record<string, string> {
-  return {} as Record<string, string>;
+  const headers: Record<string, string> = {};
+  const token = getSessionToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
 }
 
 function getCsrfToken(): string | undefined {
