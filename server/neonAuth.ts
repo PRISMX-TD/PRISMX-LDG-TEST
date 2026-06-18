@@ -83,5 +83,5 @@ export function isAuthenticated(req: any, res: Response, next: NextFunction) {
 export function setupAuth(app: any) {
   // No session middleware needed — Neon Auth uses stateless JWT
   // Just ensure the isAuthenticated middleware is available
-  console.log("[neon-auth] Using JWT-based authentication" + (NEON_AUTH_URL ? ` (${NEON_AUTH_URL})` : " (dev token mode)"));
+  console.log("[neon-auth] Neon Auth v2 JWT: " + (NEON_AUTH_URL ? NEON_AUTH_URL : "DEV-TOKEN-MODE"));
 }
