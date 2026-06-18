@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { resetPassword } from "@/lib/neonAuth";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,8 +30,9 @@ export default function ResetPassword() {
     if (newPassword !== confirmPassword) { toast({ title: "两次输入不一致", variant: "destructive" }); return; }
     setLoading(true);
     try {
-      await resetPassword(token, newPassword);
+      await apiRequest("POST", "/api/account/reset-password", { token, password: newPassword });
       setSuccess(true);
+      toast({ title: "密码重置成功", description: "请重新登录" });
       setTimeout(() => setLocation("/auth"), 1500);
     } catch (e: any) {
       toast({ title: "重置失败", description: e.message || "请重试", variant: "destructive" });

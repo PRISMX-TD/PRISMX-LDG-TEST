@@ -48,6 +48,9 @@ import {
   loans,
   type Loan,
   type InsertLoan,
+  passwordResetTokens,
+  type PasswordResetToken,
+  type InsertPasswordResetToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, ilike, getTableColumns, sql } from "drizzle-orm";
@@ -83,8 +86,15 @@ const defaultWallets = [
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserCurrency(userId: string, currency: string): Promise<User | undefined>;
+  updateUserPassword(userId: string, passwordHash: string): Promise<void>;
+
+  // Password reset tokens
+  createPasswordResetToken(token: InsertPasswordResetToken): Promise<void>;
+  getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined>;
+  deletePasswordResetTokens(userId: string): Promise<void>;
 
   // Wallet operations
   getWallets(userId: string): Promise<Wallet[]>;
@@ -251,6 +261,35 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  // Password reset tokens
+  async createPasswordResetToken(token: InsertPasswordResetToken): Promise<void> {
+    await db.insert(passwordResetTokens).values(token);
+  }
+
+  async getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined> {
+    const [token] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.tokenHash, tokenHash));
+    return token;
+  }
+
+  async deletePasswordResetTokens(userId: string): Promise<void> {
+    await db.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, userId));
   }
 
   // Wallet operations

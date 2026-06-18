@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, TransactionFilters } from "./storage";
 import { setupAuth, isAuthenticated } from "./neonAuth";
+import { sendPasswordResetEmail } from "./mailer";
 import { 
   insertTransactionSchema, 
   supportedCurrencies,
@@ -122,6 +123,85 @@ export async function registerRoutes(
         return res.status(503).json({ message: "Database unavailable" });
       }
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Forgot password - send reset email
+  app.post('/api/account/forgot-password', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      // Always return success to not leak user existence
+      if (!user) {
+        return res.json({ message: "如该邮箱已注册，重置链接已发送，1 小时内有效。检查垃圾邮件文件夹或稍后再试。" });
+      }
+
+      // Delete any existing tokens for this user
+      await storage.deletePasswordResetTokens(user.id);
+
+      // Generate secure token
+      const token = require("crypto").randomBytes(32).toString("hex");
+      const tokenHash = require("crypto").createHash("sha256").update(token).digest("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await storage.createPasswordResetToken({
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      });
+
+      // Build reset URL
+      const origin = req.headers.origin || `https://${req.headers.host}`;
+      const resetUrl = `${origin}/reset-password?token=${token}`;
+
+      const sent = await sendPasswordResetEmail(email, resetUrl);
+      if (!sent) {
+        console.error(`[forgot-password] Failed to send email to ${email}`);
+      }
+
+      res.json({ message: "如该邮箱已注册，重置链接已发送，1 小时内有效。检查垃圾邮件文件夹或稍后再试。" });
+    } catch (error) {
+      console.error("[forgot-password] Error:", error);
+      res.status(500).json({ message: "服务器错误，请稍后再试" });
+    }
+  });
+
+  // Reset password
+  app.post('/api/account/reset-password', async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+      if (password.length < 8) {
+        return res.status(400).json({ message: "密码长度至少 8 个字符" });
+      }
+
+      const tokenHash = require("crypto").createHash("sha256").update(token).digest("hex");
+      const resetToken = await storage.getPasswordResetToken(tokenHash);
+
+      if (!resetToken || new Date(resetToken.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "重置链接无效或已过期，请重新申请" });
+      }
+
+      // Hash the new password
+      const bcrypt = require("bcryptjs");
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      // Update password in our DB
+      await storage.updateUserPassword(resetToken.userId, passwordHash);
+
+      // Clean up the used token
+      await storage.deletePasswordResetTokens(resetToken.userId);
+
+      res.json({ message: "密码重置成功，请重新登录" });
+    } catch (error) {
+      console.error("[reset-password] Error:", error);
+      res.status(500).json({ message: "服务器错误，请稍后再试" });
     }
   });
 

@@ -7,7 +7,10 @@ import { rm, readFile, cp } from "fs/promises";
 const allowlist = [
   "@google/generative-ai",
   "@neondatabase/serverless",
+  "argon2",
   "axios",
+  "bcryptjs",
+  "better-sqlite3",
   "connect-pg-simple",
   "cors",
   "date-fns",
@@ -20,6 +23,7 @@ const allowlist = [
   "memorystore",
   "multer",
   "nanoid",
+  "nodemailer",
   "openai",
   "passport",
   "passport-local",
