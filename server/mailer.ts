@@ -74,9 +74,10 @@ async function sendViaSmtp(msg: Email): Promise<boolean> {
   }
 }
 
-export async function sendEmail(msg: Email): Promise<void> {
+export async function sendEmail(msg: Email): Promise<boolean> {
   // Try Resend first (simplest), then SMTP, then fall back to logging.
-  if (await sendViaResend(msg)) return;
-  if (await sendViaSmtp(msg)) return;
+  if (await sendViaResend(msg)) return true;
+  if (await sendViaSmtp(msg)) return true;
   console.warn(`[mailer] no provider configured — logging instead:\n  to: ${msg.to}\n  subject: ${msg.subject}\n  body: ${msg.text}`);
+  return false;
 }
