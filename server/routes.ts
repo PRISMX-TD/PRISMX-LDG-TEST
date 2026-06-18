@@ -2573,6 +2573,10 @@ ${url}
 
 如果你没有请求重置，可忽略此邮件。`,
         });
+        // Dev mode: return the reset link directly since email may not be configured
+        if (process.env.NODE_ENV !== "production") {
+          return res.json({ ok: true, devResetUrl: url });
+        }
       }
       res.json({ ok: true });
     } catch (err) {
