@@ -2564,6 +2564,8 @@ export async function registerRoutes(
         });
         const origin = (req.headers.origin as string) || `${req.protocol}://${req.headers.host}`;
         const url = `${origin}/reset-password?token=${raw}`;
+        // If no email provider configured, return the link in the response
+        const hasEmail = !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
         await sendEmail({
           to: email,
           subject: "PRISMX 重置密码链接",
@@ -2573,10 +2575,7 @@ ${url}
 
 如果你没有请求重置，可忽略此邮件。`,
         });
-        // Dev mode: return the reset link directly since email may not be configured
-        if (process.env.NODE_ENV !== "production") {
-          return res.json({ ok: true, devResetUrl: url });
-        }
+        return res.json({ ok: true, ...(hasEmail ? {} : { resetUrl: url }) });
       }
       res.json({ ok: true });
     } catch (err) {

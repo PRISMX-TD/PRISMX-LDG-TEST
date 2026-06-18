@@ -21,7 +21,7 @@ export default function ForgotPassword() {
     try {
       const res = await apiRequest("POST", "/api/account/forgot-password", { email: email.trim() });
       const data = await res.json();
-      if (data.devResetUrl) setResetUrl(data.devResetUrl);
+      if (data.resetUrl) setResetUrl(data.resetUrl);
       setSent(true);
     }
     catch { setSent(true); }
