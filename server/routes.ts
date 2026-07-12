@@ -2562,6 +2562,8 @@ export async function registerRoutes(
 
       const transactions = await storage.getTransactions(userId, { startDate, endDate });
       const walletsList = await storage.getWallets(userId);
+      const userRow = await storage.getUser(userId);
+      const currency = userRow?.defaultCurrency || 'MYR';
       const now = new Date();
       const budgetsSpending = await storage.getBudgetSpending(userId, now.getMonth() + 1, now.getFullYear());
 
@@ -2715,14 +2717,38 @@ export async function registerRoutes(
       }
 
       const systemPrompt = [
-        '你是一个客观中立的个人财务分析助手。',
-        '请基于提供的聚合指标进行分析，不要编造未提供的数据。',
-        '不要推荐具体股票/基金产品，建议需可执行、量化、并给出依据。',
-        '输出 JSON，结构为 {summary, insights: [{title, explanation, relatedMetrics}], actions: [{title, impact, effort, steps}], disclaimer}。',
+        '你是一位资深的个人理财顾问，服务对象是普通个人用户。',
+        '你会拿到这位用户真实的财务聚合数据，任务是给出温暖、专业、真正能落地的分析与建议。',
+        '',
+        '分析原则：',
+        `1. 用简体中文回答，语气亲切但专业，像一位真正为用户着想的顾问；不说教、不用空话套话。`,
+        `2. 所有金额单位都是用户的默认货币（见 currency 字段），文字里请带上该货币代码或符号。`,
+        '3. 每一个判断都必须引用数据里的具体数字来支撑（例如"你的储蓄率 32%，高于 20% 的健康线"）。',
+        '4. 判断要有基准依据：储蓄率健康线约 20% 以上；应急金建议覆盖 3–6 个月支出；单一支出分类占比过高（>40%）提示集中风险；预算超支要预警；识别可优化的定期/订阅类支出。',
+        '5. 建议必须具体、量化、可执行：给出目标数字（例如"把餐饮从每月 X 降到 Y，一年约省 Z"）和 2–4 个清晰步骤，而不是"要省钱"这类空话。',
+        '6. 按影响大小排序，先讲最重要的。数据不足或某项为 0/缺失时，如实说明，不要编造。',
+        '7. 不要推荐任何具体的股票、基金、理财产品或投资平台。',
+        '',
+        '严格只输出如下 JSON（不要输出任何多余文字、不要 markdown 代码块）：',
+        '{',
+        '  "summary": "2–3 句整体财务健康总结，点明最突出的优点和最该改进的一点",',
+        '  "insights": [ { "title": "简短标题", "explanation": "结合具体数字的解读，1–3 句", "relatedMetrics": ["引用到的指标名"] } ],',
+        '  "actions": [ { "title": "行动标题", "impact": "高/中/低", "effort": "轻松/中等/需坚持", "steps": ["具体步骤1", "具体步骤2"] } ],',
+        '  "disclaimer": "一句话风险/免责提示"',
+        '}',
+        'insights 给 3–5 条，actions 给 2–4 条，覆盖储蓄率、支出结构、预算执行、应急金、定期支出等维度。',
       ].join('\n');
 
+      // Give the model labelled, currency-aware context instead of a bare metrics dump,
+      // so it understands the units, what each number means, and can reference them.
+      const aiInput = {
+        currency,
+        说明: `以下是该用户最近 ${rangeMonths} 个月的财务聚合数据。所有金额单位均为 ${currency}。savingsRate 为小数（0.2 表示 20%）。emergencyFundMonths 为流动资金可支撑的月数（null 表示无法计算）。monthly 为各月收入/支出。budgetDeviations.deviation>0 表示超支。topRecurringPayments 为疑似定期/订阅支出。`,
+        指标: metrics,
+      };
+
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const timeout = setTimeout(() => controller.abort(), 22000);
       const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -2731,11 +2757,12 @@ export async function registerRoutes(
         },
         body: JSON.stringify({
           model: 'deepseek-chat',
-          temperature: 0.2,
+          temperature: 0.35,
+          max_tokens: 2000,
           response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: JSON.stringify(metrics) },
+            { role: 'user', content: JSON.stringify(aiInput) },
           ],
         }),
         signal: controller.signal,

@@ -1069,17 +1069,45 @@ function AiInsightsSection({ compact = false }: { compact?: boolean }) {
             <div className={`grid gap-3 ${compact ? "grid-cols-3" : "grid-cols-1 sm:grid-cols-3"}`}>
               <div className="rounded-xl p-3 bg-white/[0.03] border border-white/[0.06]">
                 <p className="text-[10px] tracking-[0.18em] uppercase text-foreground/55 m-0">储蓄率</p>
-                <p className="text-[18px] font-bold font-mono m-0 mt-0.5 text-emerald-300">{(data.metrics.savingsRate * 100).toFixed(1)}%</p>
+                {/* Health colour: ≥20% good, 0–20% caution, negative overspending. */}
+                <p className={`text-[18px] font-bold font-mono m-0 mt-0.5 ${
+                  data.metrics.savingsRate >= 0.2 ? "text-emerald-300"
+                  : data.metrics.savingsRate >= 0 ? "text-amber-300"
+                  : "text-rose-300"
+                }`}>{(data.metrics.savingsRate * 100).toFixed(1)}%</p>
               </div>
               <div className="rounded-xl p-3 bg-white/[0.03] border border-white/[0.06]">
                 <p className="text-[10px] tracking-[0.18em] uppercase text-foreground/55 m-0">应急金月数</p>
-                <p className="text-[18px] font-bold font-mono m-0 mt-0.5 text-amber-300">{data.metrics.emergencyFundMonths == null ? "—" : data.metrics.emergencyFundMonths.toFixed(2)}</p>
+                {/* Health colour: ≥3 months good, 1–3 caution, <1 risky. */}
+                <p className={`text-[18px] font-bold font-mono m-0 mt-0.5 ${
+                  data.metrics.emergencyFundMonths == null ? "text-foreground/50"
+                  : data.metrics.emergencyFundMonths >= 3 ? "text-emerald-300"
+                  : data.metrics.emergencyFundMonths >= 1 ? "text-amber-300"
+                  : "text-rose-300"
+                }`}>{data.metrics.emergencyFundMonths == null ? "—" : data.metrics.emergencyFundMonths.toFixed(2)}</p>
               </div>
               <div className="rounded-xl p-3 bg-white/[0.03] border border-white/[0.06]">
                 <p className="text-[10px] tracking-[0.18em] uppercase text-foreground/55 m-0">月均支出</p>
-                <p className="text-[18px] font-bold font-mono m-0 mt-0.5 text-rose-300">{currency}{data.metrics.avgMonthlyExpense.toFixed(2)}</p>
+                <p className="text-[18px] font-bold font-mono m-0 mt-0.5 text-foreground/90">{currency}{data.metrics.avgMonthlyExpense.toFixed(2)}</p>
               </div>
             </div>
+            {/* The model's actual read on the numbers — previously computed but never shown. */}
+            {data.ai?.insights && data.ai.insights.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-[12px] font-bold m-0">分析洞察</h4>
+                <div className="space-y-2">
+                  {(compact ? data.ai.insights.slice(0, 3) : data.ai.insights).map((ins, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                      <p className="text-[12px] font-semibold m-0 flex items-start gap-1.5">
+                        <span className="text-[#a78bfa] mt-[1px] shrink-0">▹</span>
+                        <span>{ins.title}</span>
+                      </p>
+                      <p className="text-[11.5px] text-foreground/65 m-0 mt-1 leading-relaxed pl-4">{ins.explanation}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <h4 className="text-[12px] font-bold m-0">当月预算偏差 Top</h4>
               {data.metrics.budgetDeviations.length === 0 ? (
@@ -1088,11 +1116,14 @@ function AiInsightsSection({ compact = false }: { compact?: boolean }) {
                 <div className="space-y-2">
                   {data.metrics.budgetDeviations.map((b) => {
                     const pct = b.budget > 0 ? Math.min(100, (b.spent / b.budget) * 100) : 0;
+                    const over = b.deviation > 0;
                     return (
                       <div key={b.categoryId} className="space-y-1">
                         <div className="flex items-center justify-between">
                           <span className="text-[11.5px] text-foreground/70 truncate">{b.categoryName}</span>
-                          <span className="text-[11.5px] font-mono">{currency}{b.deviation.toFixed(2)}</span>
+                          <span className={`text-[11.5px] font-mono ${over ? "text-rose-300" : "text-emerald-300"}`}>
+                            {over ? "超 " : "余 "}{currency}{Math.abs(b.deviation).toFixed(2)}
+                          </span>
                         </div>
                         <Progress value={pct} />
                       </div>
@@ -1107,7 +1138,21 @@ function AiInsightsSection({ compact = false }: { compact?: boolean }) {
                 <Accordion type="single" collapsible className="w-full">
                   {(compact ? (data.ai.actions || []).slice(0, 2) : (data.ai.actions || [])).map((a, idx) => (
                     <AccordionItem key={idx} value={`item-${idx}`}>
-                      <AccordionTrigger className="text-[12.5px]">{a.title}</AccordionTrigger>
+                      <AccordionTrigger className="text-[12.5px]">
+                        <span className="flex items-center gap-1.5 flex-wrap text-left pr-2">
+                          <span>{a.title}</span>
+                          {a.impact && (
+                            <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold border ${
+                              /高/.test(a.impact) ? "bg-rose-400/15 text-rose-300 border-rose-400/25"
+                              : /中/.test(a.impact) ? "bg-amber-400/15 text-amber-300 border-amber-400/25"
+                              : "bg-white/[0.06] text-foreground/55 border-white/10"
+                            }`}>影响 {a.impact}</span>
+                          )}
+                          {a.effort && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-white/[0.06] text-foreground/55 border border-white/10">{a.effort}</span>
+                          )}
+                        </span>
+                      </AccordionTrigger>
                       <AccordionContent>
                         {a.steps && a.steps.length > 0 ? (
                           <ol className="list-decimal ml-5 text-[11.5px] text-foreground/65 space-y-1">
