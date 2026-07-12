@@ -606,3 +606,17 @@ export const monthlyBalanceSnapshots = pgTable("monthly_balance_snapshots", {
 export type MonthlyBalanceSnapshot = typeof monthlyBalanceSnapshots.$inferSelect;
 export type InsertMonthlyBalanceSnapshot = typeof monthlyBalanceSnapshots.$inferInsert;
 
+// Small persisted key/value store for server-managed secrets. Currently used to
+// self-heal AUTH_SECRET in production when the env var isn't set: instead of
+// crashing, the server generates one on first boot and persists it here so every
+// instance (and every restart) reads the same stable value from the database —
+// no manual dashboard step required. Setting the AUTH_SECRET env var explicitly
+// still takes precedence when present.
+export const appSecrets = pgTable("app_secrets", {
+  key: varchar("key", { length: 64 }).primaryKey(),
+  value: text("value").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type AppSecret = typeof appSecrets.$inferSelect;
+

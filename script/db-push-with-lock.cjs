@@ -17,6 +17,32 @@ const { spawnSync } = require("child_process");
 // Distinct from the scheduler lock keys in server/pg-lock.ts (911001/911002).
 const LOCK_KEY = 911003;
 
+/**
+ * Self-heal: every identity column in our schema (id integer generatedAlwaysAsIdentity())
+ * implicitly creates a Postgres sequence named "<table>_id_seq". If a previous push was
+ * interrupted right after the sequence was created but before the table finished (or two
+ * instances raced before this lock existed), the leftover sequence makes every subsequent
+ * `drizzle-kit push` fail with "relation ... already exists" (42P07) and the container can
+ * never boot. Drop any "<table>_id_seq" whose table doesn't actually exist — that state is
+ * unambiguously orphaned garbage, never legitimate schema.
+ */
+async function dropOrphanIdentitySequences(client) {
+  const { rows } = await client.query(`
+    SELECT c.relname AS seqname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'S' AND n.nspname = 'public' AND c.relname LIKE '%\\_id\\_seq'
+  `);
+  for (const { seqname } of rows) {
+    const baseTable = seqname.replace(/_id_seq$/, "");
+    const check = await client.query("SELECT to_regclass($1) AS exists", [`public.${baseTable}`]);
+    if (!check.rows[0].exists) {
+      console.log(`[db-push] dropping orphan sequence "${seqname}" (table "${baseTable}" does not exist)`);
+      await client.query(`DROP SEQUENCE IF EXISTS "${seqname}"`);
+    }
+  }
+}
+
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl || databaseUrl.includes("dummy")) {
@@ -35,6 +61,7 @@ async function main() {
     const { rows } = await client.query("SELECT pg_try_advisory_lock($1) AS locked", [LOCK_KEY]);
 
     if (rows[0].locked) {
+      await dropOrphanIdentitySequences(client);
       console.log("[db-push] lock acquired — running drizzle-kit push...");
       const result = spawnSync("npx", ["drizzle-kit", "push", "--force"], {
         stdio: "inherit",

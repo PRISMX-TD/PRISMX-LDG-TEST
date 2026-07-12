@@ -7,6 +7,7 @@ import { isDbUnavailableError } from "./errors";
 import { pool } from "./db";
 import { startRecurringScheduler, stopRecurringScheduler } from "./recurring-scheduler";
 import { startRemindersScheduler, stopRemindersScheduler } from "./reminders-scheduler";
+import { ensureAuthSecret } from "./authToken";
 
 const app = express();
 const httpServer = createServer(app);
@@ -239,6 +240,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Must resolve before any route runs — signToken/verifyToken (used inside
+  // registerRoutes' handlers) throw until this completes.
+  await ensureAuthSecret();
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
