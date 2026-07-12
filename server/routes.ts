@@ -2629,16 +2629,19 @@ export async function registerRoutes(
         .sort((a, b) => b.total - a.total)
         .slice(0, 5);
 
-      // Emergency fund months: sum of flexible wallets converted to default currency / avg monthly expense
-      let flexibleTotal = 0;
+      // Emergency fund months: sum of the wallets the user has EARMARKED as non-daily savings
+      // (isFlexible === false === 长期/应急储蓄, per the schema) converted to default currency,
+      // divided by avg monthly expense. Wallets left "可灵活调用" (flexible — the default) are
+      // day-to-day spending money and are NOT the emergency reserve.
+      let emergencyTotal = 0;
       for (const w of walletsList) {
-        const bal = parseFloat(w.balance || '0');
-        const rate = parseFloat(w.exchangeRateToDefault || '1');
-        if (w.isFlexible) {
-          flexibleTotal += bal * (isNaN(rate) ? 1 : rate);
+        if (w.isFlexible === false) {
+          const bal = parseFloat(w.balance || '0');
+          const rate = parseFloat(w.exchangeRateToDefault || '1');
+          emergencyTotal += bal * (isNaN(rate) || rate <= 0 ? 1 : rate);
         }
       }
-      const emergencyFundMonths = avgMonthlyExpense > 0 ? flexibleTotal / avgMonthlyExpense : null;
+      const emergencyFundMonths = avgMonthlyExpense > 0 ? emergencyTotal / avgMonthlyExpense : null;
 
       // Budget deviations for current month
       const budgetDeviations = budgetsSpending.map((b) => ({
@@ -2743,7 +2746,7 @@ export async function registerRoutes(
       // so it understands the units, what each number means, and can reference them.
       const aiInput = {
         currency,
-        说明: `以下是该用户最近 ${rangeMonths} 个月的财务聚合数据。所有金额单位均为 ${currency}。savingsRate 为小数（0.2 表示 20%）。emergencyFundMonths 为流动资金可支撑的月数（null 表示无法计算）。monthly 为各月收入/支出。budgetDeviations.deviation>0 表示超支。topRecurringPayments 为疑似定期/订阅支出。`,
+        说明: `以下是该用户最近 ${rangeMonths} 个月的财务聚合数据。所有金额单位均为 ${currency}。savingsRate 为小数（0.2 表示 20%）。emergencyFundMonths 为用户专门留作应急/长期储蓄（即关闭了"可灵活调用"的钱包）的资金可支撑的月数，null 或 0 表示用户尚未划出专门的应急储蓄。monthly 为各月收入/支出。budgetDeviations.deviation>0 表示超支。topRecurringPayments 为疑似定期/订阅支出。`,
         指标: metrics,
       };
 

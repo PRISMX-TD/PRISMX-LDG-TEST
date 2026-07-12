@@ -339,7 +339,7 @@ export function WalletModal({ open, onOpenChange, wallet, defaultCurrency = "MYR
                   <FormItem className="flex items-center justify-between rounded-2xl p-3 bg-white/[0.03] border border-white/[0.06]">
                     <div className="min-w-0 flex-1">
                       <FormLabel className="text-[12.5px] font-semibold">可灵活调用资金</FormLabel>
-                      <p className="text-[10.5px] text-foreground/50 m-0 mt-0.5">非长期储蓄或应急储蓄, 可随时使用</p>
+                      <p className="text-[10.5px] text-foreground/50 m-0 mt-0.5">打开：日常可花的活钱。关闭：长期/应急储蓄，会计入应急金、不作日常花销</p>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-flexible" />
