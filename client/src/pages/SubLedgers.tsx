@@ -52,9 +52,10 @@ export default function SubLedgers() {
 
   const getConverted = (t: Transaction): number => {
     const raw = parseFloat(t.amount);
-    const w = wallets.find((x) => x.id === t.walletId);
+    // Prefer the joined wallet so archived wallets (absent from /api/wallets) still convert.
+    const w = (t as any).wallet || wallets.find((x) => x.id === t.walletId);
     const rate = parseFloat(w?.exchangeRateToDefault || "1");
-    return raw * rate;
+    return raw * (isNaN(rate) || rate <= 0 ? 1 : rate);
   };
 
   const invalidate = () => queryClient.invalidateQueries({

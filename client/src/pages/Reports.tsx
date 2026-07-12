@@ -53,9 +53,13 @@ export default function Reports() {
 
     filtered.forEach(t => {
       const raw = parseFloat(t.amount);
-      const wallet = wallets.find(w => w.id === t.walletId);
+      // Prefer the joined wallet so archived wallets (absent from /api/wallets) still convert.
+      const wallet = (t as any).wallet || wallets.find(w => w.id === t.walletId);
       let amount = raw;
-      if (wallet && wallet.currency !== defaultCur) amount = raw * (parseFloat(wallet.exchangeRateToDefault || "1"));
+      if (wallet && wallet.currency !== defaultCur) {
+        const r = parseFloat(wallet.exchangeRateToDefault || "1");
+        amount = raw * (isNaN(r) || r <= 0 ? 1 : r);
+      }
 
       if (t.type === "income") totalIncome += amount;
       else if (t.type === "expense") totalExpense += amount;

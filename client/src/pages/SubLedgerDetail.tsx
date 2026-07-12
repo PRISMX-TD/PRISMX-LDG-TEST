@@ -46,9 +46,11 @@ export default function SubLedgerDetail() {
     const cur: Record<string, { expense: number; income: number; convertedExpense: number; convertedIncome: number }> = {};
     const defaultCurrency = user?.defaultCurrency || "MYR";
     subLedgerTransactions.forEach(t => {
-      const w = wallets.find(x => x.id === t.walletId);
+      // Prefer the joined wallet so archived wallets (absent from /api/wallets) still convert.
+      const w = (t as any).wallet || wallets.find(x => x.id === t.walletId);
       const c = w?.currency || defaultCurrency;
-      const rate = parseFloat(w?.exchangeRateToDefault || "1");
+      const rawRate = parseFloat(w?.exchangeRateToDefault || "1");
+      const rate = isNaN(rawRate) || rawRate <= 0 ? 1 : rawRate;
       const amount = parseFloat(t.amount);
       const converted = amount * rate;
       if (!cur[c]) cur[c] = { expense: 0, income: 0, convertedExpense: 0, convertedIncome: 0 };

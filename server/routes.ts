@@ -2565,6 +2565,16 @@ export async function registerRoutes(
       const now = new Date();
       const budgetsSpending = await storage.getBudgetSpending(userId, now.getMonth() + 1, now.getFullYear());
 
+      // Every amount below is expressed in the user's default currency. Transactions are
+      // stored in their wallet's currency, so convert via the wallet's exchange rate — otherwise
+      // a USD expense would be summed as if it were MYR and every derived metric (savings rate,
+      // avg monthly expense, emergency-fund months, the monthly trend, and the numbers fed to
+      // the AI) would be wrong for multi-currency users.
+      const fxAmount = (t: any): number => {
+        const rate = parseFloat(t.wallet?.exchangeRateToDefault || '1');
+        return parseFloat(t.amount) * (isNaN(rate) || rate <= 0 ? 1 : rate);
+      };
+
       // Monthly aggregates
       const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const monthly: Record<string, { income: number; expense: number }> = {};
@@ -2574,7 +2584,7 @@ export async function registerRoutes(
         // Skip loan transactions for insights
         if (t.loanId) continue;
 
-        const amt = parseFloat(t.amount);
+        const amt = fxAmount(t);
         const key = monthKey(new Date(t.date));
         if (!monthly[key]) monthly[key] = { income: 0, expense: 0 };
         if (t.type === 'income') {
@@ -2595,8 +2605,7 @@ export async function registerRoutes(
       for (const t of transactions) {
         if (t.loanId) continue;
         if (t.type !== 'expense' || !t.categoryId || !t.category) continue;
-        const rate = parseFloat(t.wallet?.exchangeRateToDefault || '1');
-        const amount = parseFloat(t.amount) * (isNaN(rate) || rate <= 0 ? 1 : rate);
+        const amount = fxAmount(t);
         const existing = categoryTotalsForAi.get(t.categoryId);
         if (existing) {
           existing.total += amount;
@@ -2644,7 +2653,7 @@ export async function registerRoutes(
       const seenByMonthKey: Record<string, Set<string>> = {};
       for (const t of transactions) {
         if (t.type !== 'expense') continue;
-        const amt = parseFloat(t.amount);
+        const amt = fxAmount(t);
         if (amt <= 0) continue;
         const keyMonth = monthKey(new Date(t.date));
         const compositeKey = `${Math.round(amt * 100) / 100}|cat:${t.categoryId || 'none'}`;

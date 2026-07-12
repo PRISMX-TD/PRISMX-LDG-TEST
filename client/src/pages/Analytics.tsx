@@ -270,8 +270,14 @@ export default function Analytics() {
   const getConverted = (t: Transaction): number => {
     const raw = parseFloat(t.amount);
     const defaultCur = user?.defaultCurrency || "MYR";
-    const w = wallets.find(x => x.id === t.walletId);
-    if (w && w.currency !== defaultCur) return raw * parseFloat(w.exchangeRateToDefault || "1");
+    // Prefer the wallet joined onto the transaction so conversion still works for
+    // transactions on ARCHIVED wallets (which are excluded from the /api/wallets list,
+    // so wallets.find would miss them and silently skip conversion).
+    const w = (t as any).wallet || wallets.find(x => x.id === t.walletId);
+    if (w && w.currency !== defaultCur) {
+      const r = parseFloat(w.exchangeRateToDefault || "1");
+      return raw * (isNaN(r) || r <= 0 ? 1 : r);
+    }
     return raw;
   };
 
@@ -1011,11 +1017,13 @@ interface AiResponse {
 }
 
 function AiInsightsSection({ compact = false }: { compact?: boolean }) {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [rangeMonths, setRangeMonths] = useState<string>("6");
   const queryKey = useMemo(() => ["/api", "ai", `insights?rangeMonths=${rangeMonths}`], [rangeMonths]);
   const { data, isLoading, refetch } = useQuery<AiResponse>({ queryKey, enabled: isAuthenticated });
-  const currency = getCurrencyInfo(undefined as any)?.symbol || "RM";
+  // Use the user's actual default currency — the server already returns every metric
+  // converted to it. (Previously this was hard-coded to RM regardless of the user.)
+  const currency = getCurrencyInfo(user?.defaultCurrency || "MYR").symbol;
 
   return (
     <SectionCard title="AI 建议" icon={<Brain className="w-4 h-4" />} accent="violet"
@@ -1042,8 +1050,10 @@ function AiInsightsSection({ compact = false }: { compact?: boolean }) {
             <Skeleton className="h-5 w-1/2 bg-white/[0.05]" />
             <Skeleton className="h-24 w-full bg-white/[0.05]" />
           </div>
-        ) : !data ? (
-          <p className="text-[12.5px] text-foreground/55 m-0">暂无数据</p>
+        ) : !data || !data.metrics ? (
+          // Guard against data.metrics being null — the server returns { metrics: null }
+          // when the computation fails early, and reading data.metrics.* would crash the page.
+          <p className="text-[12.5px] text-foreground/55 m-0">{data?.message || "暂无数据"}</p>
         ) : (
           <div className="space-y-4">
             {data.ai?.summary && (
