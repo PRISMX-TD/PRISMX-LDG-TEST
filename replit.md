@@ -267,7 +267,7 @@ PRISMX Ledger 是一个安全可靠的个人财务跟踪Web应用，支持多用
 - **认证**：会话 token 存于 httpOnly Cookie（`prismx_session`），前端 JS 读不到，登出走 `POST /api/auth/logout`。写操作需 CSRF 双提交头（`x-csrf-token`）。
 - **资金原子性**：交易的增删改、转账、账单支付、定期交易都在单个数据库事务内完成余额调整与记账，避免中途失败导致账不平。
 - **删钱包 = 归档（软删除）**：默认 `DELETE /api/wallets/:id` 会归档钱包并**完整保留交易**；仅 `?deleteTransactions=true` 才硬删除（连带删交易）。归档钱包不出现在活跃列表与资产合计中，但历史仍可查；可通过 `PATCH { isArchived:false }` 恢复。
-- **多实例**：定期交易/提醒调度器用 Postgres 咨询锁选主，autoscale 下不会重复扣款/重复推送。
+- **多实例**：定期交易/提醒调度器用 Postgres 咨询锁选主，autoscale 下不会重复扣款/重复推送；容器启动时的 `drizzle-kit push` 也套了同款咨询锁（`script/db-push-with-lock.cjs`），多个实例同时启动不会再互相打架导致 schema push 失败。
 
 ## 开发命令
 - `npm run dev` - 启动开发服务器

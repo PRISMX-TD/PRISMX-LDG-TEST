@@ -12,6 +12,7 @@ RUN npm install --no-audit --no-fund --ignore-scripts
 COPY --from=builder /app/dist ./dist
 COPY drizzle.config.ts ./
 COPY shared ./shared
+COPY script/db-push-with-lock.cjs ./script/db-push-with-lock.cjs
 ENV NODE_ENV=production
 EXPOSE 5000
-CMD npx drizzle-kit push && node dist/index.cjs
+CMD node script/db-push-with-lock.cjs && node dist/index.cjs
