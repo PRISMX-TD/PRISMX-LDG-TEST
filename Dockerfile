@@ -15,4 +15,6 @@ COPY shared ./shared
 COPY script/db-push-with-lock.cjs ./script/db-push-with-lock.cjs
 ENV NODE_ENV=production
 EXPOSE 5000
-CMD node script/db-push-with-lock.cjs && node dist/index.cjs
+# Use ';' not '&&': the schema-push step must never be able to prevent the app from
+# starting (a failed/half-applied migration should degrade to some 500s, not a full 502).
+CMD node script/db-push-with-lock.cjs; node dist/index.cjs

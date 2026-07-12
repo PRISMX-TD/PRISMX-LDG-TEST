@@ -18,28 +18,38 @@ const { spawnSync } = require("child_process");
 const LOCK_KEY = 911003;
 
 /**
- * Self-heal: every identity column in our schema (id integer generatedAlwaysAsIdentity())
- * implicitly creates a Postgres sequence named "<table>_id_seq". If a previous push was
- * interrupted right after the sequence was created but before the table finished (or two
- * instances raced before this lock existed), the leftover sequence makes every subsequent
- * `drizzle-kit push` fail with "relation ... already exists" (42P07) and the container can
- * never boot. Drop any "<table>_id_seq" whose table doesn't actually exist — that state is
- * unambiguously orphaned garbage, never legitimate schema.
+ * Self-heal orphaned sequences.
+ *
+ * Every identity column in our schema (`id integer generatedAlwaysAsIdentity()`) implicitly
+ * creates a Postgres sequence "<table>_id_seq" that is OWNED by the column — in pg_depend
+ * this shows up as an auto('a') or internal('i') dependency of the sequence on the column.
+ *
+ * If a previous push was interrupted (or two instances raced before the lock existed), a
+ * sequence can be left behind with NO owning column. Those orphans make every subsequent
+ * `drizzle-kit push` fail with 'relation "..._id_seq" already exists' (42P07). Since the
+ * container's boot is gated on push, that turned into a hard 502.
+ *
+ * We drop only sequences that have no owning-column dependency — an attached, legitimate
+ * identity sequence always has one, so this can never drop live schema. This is more robust
+ * than the previous "base table doesn't exist" heuristic (it also handles the case where the
+ * table exists but the sequence got detached).
  */
-async function dropOrphanIdentitySequences(client) {
+async function dropOrphanSequences(client) {
   const { rows } = await client.query(`
     SELECT c.relname AS seqname
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE c.relkind = 'S' AND n.nspname = 'public' AND c.relname LIKE '%\\_id\\_seq'
+    WHERE c.relkind = 'S'
+      AND n.nspname = 'public'
+      AND c.relname LIKE '%\\_id\\_seq'
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.objid = c.oid AND d.deptype IN ('a', 'i')
+      )
   `);
   for (const { seqname } of rows) {
-    const baseTable = seqname.replace(/_id_seq$/, "");
-    const check = await client.query("SELECT to_regclass($1) AS exists", [`public.${baseTable}`]);
-    if (!check.rows[0].exists) {
-      console.log(`[db-push] dropping orphan sequence "${seqname}" (table "${baseTable}" does not exist)`);
-      await client.query(`DROP SEQUENCE IF EXISTS "${seqname}"`);
-    }
+    console.log(`[db-push] dropping orphan sequence "${seqname}" (not owned by any column)`);
+    await client.query(`DROP SEQUENCE IF EXISTS "${seqname}"`);
   }
 }
 
@@ -61,7 +71,7 @@ async function main() {
     const { rows } = await client.query("SELECT pg_try_advisory_lock($1) AS locked", [LOCK_KEY]);
 
     if (rows[0].locked) {
-      await dropOrphanIdentitySequences(client);
+      await dropOrphanSequences(client);
       console.log("[db-push] lock acquired — running drizzle-kit push...");
       // --verbose: without it, a run that silently applies nothing (e.g. because it
       // couldn't reach an interactive confirmation in this non-TTY container) looks
@@ -75,8 +85,11 @@ async function main() {
       });
       await client.query("SELECT pg_advisory_unlock($1)", [LOCK_KEY]);
       if (result.status !== 0) {
-        console.error("[db-push] drizzle-kit push failed");
-        process.exit(result.status || 1);
+        // IMPORTANT: a failed migration must NOT keep the whole app down (502). Log it
+        // loudly (the --verbose output above shows exactly what failed) and continue to
+        // boot — schema-dependent features may 500 until it's resolved, but the site stays
+        // up and the error is visible in logs instead of an opaque bad gateway.
+        console.error("[db-push] drizzle-kit push FAILED — see output above. Booting the app anyway; schema-dependent features may error until this is fixed.");
       }
     } else {
       console.log("[db-push] another instance is migrating — waiting for it to finish...");
@@ -92,6 +105,8 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[db-push] error:", err);
-  process.exit(1);
+  // Never let a migration-step error (bad connection, lock issue, etc.) block app boot.
+  console.error("[db-push] error (continuing to boot the app anyway):", err);
+}).finally(() => {
+  process.exit(0);
 });
